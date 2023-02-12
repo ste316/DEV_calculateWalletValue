@@ -771,36 +771,30 @@ if __name__ == '__main__':
     option = get_args()
     run = False
     if option.calc:
+        if option.load:
+            if option.privacy: 
+                # when running load=True the first param doesn't matter
+                # crypto or total will be asked as user input during runtime
+                main = calculateWalletValue('crypto', privacy=True, load=True)
+                run = True
+            else:
+                main = calculateWalletValue('crypto', privacy=False, load=True)
+                run = True
+
         if option.crypto:
             if option.privacy:
-                if option.load:
-                    main = calculateWalletValue('crypto', privacy=True, load=True)
-                    run = True
-                else:
-                    main = calculateWalletValue('crypto', privacy=True, load=False)
-                    run = True
+                main = calculateWalletValue('crypto', privacy=True, load=False)
+                run = True
             else:
-                if option.load:
-                    main = calculateWalletValue('crypto', privacy=False, load=True)
-                    run = True
-                else:
-                    main = calculateWalletValue('crypto', privacy=False, load=False)
-                    run = True
+                main = calculateWalletValue('crypto', privacy=False, load=False)
+                run = True
         elif option.total:
             if option.privacy:
-                if option.load:
-                    main = calculateWalletValue('total', privacy=True, load=True)
-                    run = True
-                else:
-                    main = calculateWalletValue('total', privacy=True, load=False)
-                    run = True
+                main = calculateWalletValue('total', privacy=True, load=False)
+                run = True
             else:
-                if option.load:
-                    main = calculateWalletValue('total', privacy=False, load=True)
-                    run = True
-                else:
-                    main = calculateWalletValue('total', privacy=False, load=False)
-                    run = True
+                main = calculateWalletValue('total', privacy=False, load=False)
+                run = True
 
     elif option.report:
         if option.crypto:
