@@ -20,6 +20,7 @@
 #                             TODO [json] merge walletGeneralOverview.json into walletValue.json
 #                             TODO [main] clean and comment new code
 #
+# TODO [walletBalanceReport] add volatility index https://www.youtube.com/watch?v=xzmRQgo8ZXs https://www.youtube.com/watch?v=cXqGMS2HAU0
 # TODO [calculateWalletValue] add support for CG api key
 # TODO [main] see cmc fiat conversion
 #             https://coinmarketcap.com/api/documentation/v1/#operation/getV2ToolsPriceconversion
