@@ -65,14 +65,14 @@ class cg_api:
             if self.error_count > 5:
                 lib.printFail("Api may be down, check https://status.coingecko.com/")
             try:
-                rtrn = self.cg.get_price(id.lower(), vs_currencies=self.currency) # rtrn format {<id>: {<currency>: <price>}}
+                rtrn = self.cg.get_price(id.lower(), vs_currencies=self.currency, include_market_cap=False, include_24hr_vol=False, include_24hr_change=False, include_last_updated_at=False) # rtrn format {<id>: {<currency>: <price>}}
                 break
             except exceptions.HTTPError:
                 lib.printFail(f'Error retriving price of {id}, retrying...')
                 self.error_count +=1
                 sleep(0.7)
                 continue
-            except ValueError as e:
+            except ValueError:
                 n = 100
                 lib.printFail(f'Error, you are rate limited, sleeping {n} seconds...')
                 self.error_count +=1
@@ -115,18 +115,6 @@ class cg_api:
         else: newId = dict['id'][0]  # in case convertSymbol2ID() found only one id
 
         return self.retrievePriceOF(newId)
-
-# retrieve price of 'symbol'
-# @param symbol string eg. "EURUSD=X"
-# @return float, False if symbol cannot be found
-def yahooGetPriceOf(symbol: str):
-    try:
-        data = yf.download(tickers = symbol, period ='1d', interval = '1m', progress=False)
-        return data.tail()['Close'][4]
-    except web._utils.RemoteDataError: 
-        # if symbol cannot be found
-        lib.printFail(f'Error getting price of {symbol}')
-        return False
 
 from requests import Session
 from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
@@ -243,14 +231,37 @@ class cmc_api:
         if (set(convertedSymbol.keys()) & set(toReturn.keys())) != set(symbols):
             return (toReturn, False, set(symbols) - set(toReturn.keys()), data)
         
-        print(toReturn)
         return (toReturn, True)
 
+# retrieve price of 'symbol'
+# @param symbol string eg. "EURUSD=X"
+# @return float, False if symbol cannot be found
+def yahooGetPriceOf(symbol: str):
+    try:
+        data = yf.download(tickers = symbol, period ='1d', interval = '1m', progress=False)
+        return data.tail()['Close'][4]
+    except web._utils.RemoteDataError: 
+        # if symbol cannot be found
+        lib.printFail(f'Error getting price of {symbol}')
+        return False
+
+def getTicker(ticker: str, start: str, end: str) -> float:
+    # start and end format: yyyy-mm-dd
+    if lib.isValidDate(start, '%Y-%m-%d') and lib.isValidDate(end, '%Y-%m-%d'):
+        data = yf.Ticker(ticker)
+        return data.history(period='1mo', interval='1d')['Close'][0]
+    else: 
+        print('error')
+        return 0
+
 if __name__ == '__main__':
+    '''
     sett = lib.getSettings()
     cg = cg_api(sett['currency'])
     cg.getPriceOf("BTC")
-    '''
     cmc = cmc_api(sett['currency'], sett['CMC_key'])
     print(cmc.getPriceOf(['BTC','MATIC','JUNO','AVAX', 'DJERNB']))
     '''
+    #print(getTicker("BTC-EUR", '2023-01-01', lib.getCurrentDay('%Y-%m-%d')))
+    #print(getTicker("AAPL"))
+    #print(getTicker("^NCIS", lib.getPreviousDay(lib.getCurrentDay('%Y-%m-%d'), '%Y-%m-%d'), lib.getCurrentDay('%Y-%m-%d')))

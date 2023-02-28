@@ -1,4 +1,4 @@
-from api import cg_api, cmc_api, yahooGetPriceOf
+from api import cg_api, cmc_api, yahooGetPriceOf, getTicker
 from lib_tool import lib
 from pandas import read_csv
 from datetime import datetime
@@ -21,7 +21,7 @@ class calculateWalletValue:
     # Initialization variable and general settings
     def __init__(self, type: str, load = False, privacy = False) -> None:
         self.settings = lib.getSettings()
-        self.version = 'CWV_1.0'
+        self.version = 'CWV_1.1.0'
         self.invalid_sym = []
         self.provider = ''
         self.supportedFiat =  ['eur', 'usd']
@@ -90,10 +90,14 @@ class calculateWalletValue:
             
             if not os.path.exists(basePath+'\\walletValue.json'):
                 open(basePath+'\\walletValue.json', 'w')
-            
+
+            if not os.path.exists(basePath+'\\report.json'):
+                open(basePath+'\\report.json', 'w')
+
             # set paths variable
             self.settings['grafico_path'] = basePath+'\\grafico'
-            self.settings['json_path'] = basePath+'\\walletValue.json'
+            self.settings['wallet_path'] = basePath+'\\walletValue.json'
+            self.settings['report_path'] = basePath+'\\report.json'
         else:
             lib.printFail('Specify a correct path in settings.json')
             exit()
@@ -135,6 +139,13 @@ class calculateWalletValue:
             return dict
         lib.printFail('Unexpected error, incorrect price provider')
         exit()
+    
+    def getCryptoIndex(self) -> float:
+        return getTicker(
+            ticker="^NCIS", 
+            start=lib.getPreviousDay(lib.getCurrentDay('%Y-%m-%d'), '%Y-%m-%d'), 
+            end=lib.getCurrentDay('%Y-%m-%d')
+        )
 
     # print invalid pairs or incorrect symbol
     def showInvalidSymbol(self) -> None:
@@ -390,7 +401,8 @@ class calculateWalletValue:
             # so you do NOT need to save the img and do NOT need to update json file
             plt.savefig(f'{self.settings["grafico_path"]}\\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}') #save image
             lib.printOk(f'Pie chart image successfully saved in {self.settings["grafico_path"]}\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}')
-            self.updateJson()
+            self.updateWalletValueJson()
+            self.updateReportJson()
 
         plt.show()
 
@@ -404,10 +416,21 @@ class calculateWalletValue:
             li.append([symbol, qta, value]) # convert dict to list
         return li
 
+    def updateReportJson(self):
+        temp = json.dumps({
+            'date': self.wallet['date'],
+            'currency': self.wallet['currency'],
+            'NCIS': round(self.getCryptoIndex(), 2), # Nasdaq Crypto Index Settlement
+        })
+        res = lib.updateJson(self.settings['report_path'], self.wallet['date'].split(' ')[0], temp)
+        if res[0]:
+            lib.printOk(f'Data successfully saved in {self.settings["report_path"]}')            
+        else:
+            lib.printFail(f"Failed to update {self.settings['wallet_path']}")   
+
     # append the record in walletValue.json
     # it overwrite the record with the same date of today
-    def updateJson(self):
-        new_file = ''
+    def updateWalletValueJson(self):
         temp = json.dumps({ # data to be dumped
             'date': self.wallet['date'],
             'total_value': self.wallet['total_value'],
@@ -418,30 +441,11 @@ class calculateWalletValue:
             'crypto': [['COIN, QTA, VALUE IN CURRENCY']]+self.getWalletAsList(), # all symbols
             }
         )
-
-        # read dates from json file
-        # store the updated record so
-        # if today's date is already in the json file, overwrite it,
-        with open(self.settings['json_path'], 'r') as f:
-            for line in f:
-                try:
-                    date = json.loads(line)
-                except json.decoder.JSONDecodeError: # sometimes it throw error on line 2
-                    pass
-                # parse date and convert to dd/mm/yyyy
-                old_file_date = datetime.strptime(date['date'].split(' ')[0], '%d/%m/%Y')
-                new_date = datetime.strptime(self.wallet['date'].split(' ')[0], '%d/%m/%Y')
-
-                if old_file_date != new_date: # if file dates aren't equal to today's date
-                    new_file += line # add line to new file
-        
-        # add the latest record to new file
-        new_file += temp
-
-        with open(self.settings['json_path'], 'w') as f:
-            f.write(f'{new_file}\n')
-        
-        lib.printOk(f'Data successfully saved in {self.settings["json_path"]}\n')
+        res = lib.updateJson(self.settings['wallet_path'], self.wallet['date'].split(' ')[0], temp)
+        if res[0]:
+            lib.printOk(f'Data successfully saved in {self.settings["wallet_path"]}')            
+        else:
+            lib.printFail(f"Failed to update {self.settings['wallet_path']}")
 
     # given a past date and json data from walletValue.json file, 
     # create a pie chart
@@ -450,7 +454,7 @@ class calculateWalletValue:
         record = []
 
         # load records of json file
-        with open(self.settings['json_path'], 'r') as f:
+        with open(self.settings['wallet_path'], 'r') as f:
             for line in f:
                 record.append(json.loads(line))
         # print all date of records
@@ -528,8 +532,8 @@ class walletBalanceReport:
     # Initialization variable and general settings
     def __init__(self, type: str) -> None: 
         self.settings = lib.getSettings()
-        self.version = 'WBR_1.0'
-        self.settings['json_path'] = self.settings['path']+ '\\walletValue.json'
+        self.version = 'WBR_1.1.0'
+        self.settings['wallet_path'] = self.settings['path']+ '\\walletValue.json'
         self.data = {
             'date': [],
             'total_value': [],
@@ -556,14 +560,35 @@ class walletBalanceReport:
         else:
             return False
 
+    def chooseDateRange(self):
+        while True:
+            lib.printAskUserInput("Choose a date range, enter dates one by one")
+            lib.printAskUserInput(f"{lib.FAIL_RED}NOTE!{lib.ENDC} default dates are the first and last recorded date on walletValue.json\nFirst date")
+            lib.printAskUserInput(f'\tinsert a date, press enter to use the default one, {lib.FAIL_RED} format: dd/mm/yyyy {lib.ENDC}')
+            firstIndex = lib.getUserInputDate(self.data['date'])
+            if firstIndex == 'default':
+                firstIndex = 0
+            lib.printAskUserInput("Last date:")
+            lib.printAskUserInput(f'\tinsert a date, press enter to use the default one, {lib.FAIL_RED} format: dd/mm/yyyy {lib.ENDC}')
+            lastIndex = lib.getUserInputDate(self.data['date'])
+            if lastIndex == 'default':
+                lastIndex = len(self.data['date'])-1
+            if lastIndex > firstIndex:
+                # to understand why is lastIndex+1 search python list slicing
+                self.daterange = tuple([firstIndex, lastIndex+1])
+                self.data['date'] = self.data['date'][firstIndex:lastIndex+1]
+                self.data['total_value'] = self.data['total_value'][firstIndex:lastIndex+1]
+                break
+            else: lib.printFail("Invalid range of date")
+
     # 
     # load all DATETIME from json file
     # to have a complete graph, when the next date is not the following date
     # add the following date and the value of the last updated
     #
     def loadDatetime(self) -> None:
-        lib.printWarn(f'Loading value from {self.settings["json_path"]}...')
-        with open(self.settings['json_path'], 'r') as f:
+        lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
+        with open(self.settings['wallet_path'], 'r') as f:
             firstI = True # first interaction
             f = list(f) # each element of 'f' is a line
             for i, line in enumerate(f):
@@ -589,7 +614,7 @@ class walletBalanceReport:
                 if line['currency'] != self.settings['currency']: 
                     rate = self.getForexRate(line)
                     if not rate:
-                        lib.printFail(f'Currency not supported, check {self.settings["json_path"]} line: {i+1}')
+                        lib.printFail(f'Currency not supported, check {self.settings["wallet_path"]} line: {i+1}')
                         exit()
                     total_value /= rate # convert value using current forex rate
 
@@ -612,22 +637,83 @@ class walletBalanceReport:
 
                 self.data['date'].append(lastDatePlus1d)
 
+    def calcTotalVolatility(self):
+        # abs((sommatoria peso_crypto*volatilità_crypto ) / n )
+
+        # define which assets to calc volatility on
+        assets = dict()
+        with open(self.settings['wallet_path'], 'r') as f:
+            line = json.loads(list(f)[-1])
+            crypto_list = line['crypto'][1:]
+            for item in crypto_list:
+                if item[0] != self.data['currency']:
+                    assets[item[0]] = item[1]/line['total_value']
+        
+        # group data using date of records
+        crypto_data = dict()
+        with open(self.settings['wallet_path'], 'r') as f:
+            for line in f:
+                line = json.loads(line)
+                crypto_list = line['crypto'][1:]
+                date = line['date'].split(' ')[0]
+                total_val = line['total_value']
+                temp = dict()
+                for crypto in crypto_list:
+                    if crypto[0] in assets.keys():
+                        temp[crypto[0]] = crypto[2]/crypto[1]
+                
+                crypto_data[date] = temp
+
+        #print(f'{crypto_data=}')
+        # TODO fix 
+
+        # group data using ticker
+        volatility = dict()
+        for (date, crypto) in crypto_data.items():
+            for (ticker, value) in crypto.items():
+                if ticker not in volatility.keys():
+                    volatility[ticker] = [value]
+                else:
+                    volatility[ticker].append(value)
+
+        # TODO fix minor number of record
+        #print(f'{volatility["EWT"]=}')
+        
+        print(assets)
+        for (ticker, arr) in volatility.items():
+            volatility[ticker] = lib.calcAssetVolatility(arr)
+        
+        vol = int()
+        for (ticker, parz) in volatility.items():
+            vol += parz * assets[ticker]
+
+        vol /= sum(assets.values())
+
+        print(volatility, vol)
+
+            
+
+
     # create PLT
     def genPlt(self):
         lib.printWarn(f'Creating chart...')
-        # set back ground [white, dark, whitegrid, darkgrid, ticks]
+        # set background [white, dark, whitegrid, darkgrid, ticks]
         sns.set_style('darkgrid') 
         # define size of the image
         plt.figure(figsize=(7, 6), tight_layout=True)
         plt.plot(self.data['date'], self.data['total_value'], color='red', marker='')
-        plt.title(f'{self.type.capitalize()} Balance from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")} \nCurrency: {self.settings["currency"]}', fontsize=14, weight='bold') # add title
+        plt.title(f'{self.type.capitalize()} balance from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}\nVolatility percentage: {round(self.volatility, 2)}% \nCurrency: {self.settings["currency"]}', fontsize=14, weight='bold')
         # changing the fontsize and rotation of x ticks
         plt.xticks(fontsize=6.5, rotation = 45)
         plt.show()
 
     def run(self) -> None:
         self.loadDatetime()
-        self.genPlt()
+        self.chooseDateRange()
+        # self.volatility = lib.calcAssetVolatility(self.data['total_value'])
+        self.volatility = 0
+        self.calcTotalVolatility()
+        #self.genPlt()
 
 # 
 # See amount and fiat value of a single crypto over time
@@ -638,9 +724,9 @@ class cryptoBalanceReport:
     # Initialization variable and general settings
     def __init__(self) -> None: 
         self.settings = lib.getSettings()
-        self.version = 'CBR_1.0'
+        self.version = 'CBR_1.1.0'
         lib.printWelcome(f'Welcome to Crypto Balance Report!')
-        self.settings['json_path'] = self.settings['path']+ '\\walletValue.json'
+        self.settings['wallet_path'] = self.settings['path']+ '\\walletValue.json'
         self.cryptos = set()
         self.ticker = ''
         self.data = {
@@ -651,7 +737,7 @@ class cryptoBalanceReport:
 
     # retrieve all cryptos ever recorded in json file
     def retrieveCryptoList(self) -> None:
-        with open(self.settings['json_path'], 'r') as f:
+        with open(self.settings['wallet_path'], 'r') as f:
             for line in f:
                 crypto_list = json.loads(line)['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
                 for sublist in crypto_list:
@@ -684,8 +770,8 @@ class cryptoBalanceReport:
     # collect amount, fiat value and date
     # fill amounts of all empty day with the last available
     def retrieveDataFromJson(self) -> None:
-        lib.printWarn(f'Loading value from {self.settings["json_path"]}...')
-        with open(self.settings['json_path'], 'r') as file:
+        lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
+        with open(self.settings['wallet_path'], 'r') as file:
             firstI = True # first interaction
             file = list(file) # each element of file is a line
             for index, line in enumerate(file):
