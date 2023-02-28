@@ -1,33 +1,19 @@
 #
-#   TO PUSH
-#  cryptoBalanceReport.retrieveDataFromJson() fixed some issue
-#
 #                           TO DO
-# TODO [main version 2.0]:
-#                             DONE [calculateWalletValue] use one file to dump both total and crypto
-#                                                         include total_value and crypto_value fields
-#                                                         the only one difference between running --crypto and --total 
-#                                                         is genPlt()
-#                             DONE [calculateWalletValue] add a flag to (do not) see fiat value in genPlt() img output 
-#                             DONE [calculateWalletValue] check if cmc key is valid https://coinmarketcap.com/alexandria/article/register-for-coinmarketcap-api  
-#                             DONE [calculateWalletValue] add lib.printwarn with privacy settings
-#                             DONE [walletBalanceReport] adapt to json changes
-#                             DONE [cryptoBalanceReport] adapt to json changes
-#                             TODO [new] ? use openAI to give information about cryptocurrency, pricing, trading strategies
-#                                        https://openai.com/api/pricing/
-#                                        https://beta.openai.com/docs/guides/embeddings/what-are-embeddings
-#                             DONE [main] clean and comment new code
-#                             TODO [json] merge walletGeneralOverview.json into walletValue.json
-#                             TODO [main] clean and comment new code
-#
-# TODO [walletBalanceReport] add volatility index https://www.youtube.com/watch?v=xzmRQgo8ZXs https://www.youtube.com/watch?v=cXqGMS2HAU0
+# TODO [api] move cg_api.cachedSymbol to an external json and load it
+# TODO [calculateWalletValue] add stablecoin percentage in crypto img
+# TODO [calculateWalletValue] fix error 429 coingecko
+# TODO [cryptoBalanceReport] implement date range
+# TODO [cryptoBalanceReport] implement volatility
+# TODO [walletBalanceReport] implement volatility
+# TODO [lib] comment new code
+# TODO [lib] compare volatility with btc and eth volatility or other crypto index
+#            DONE [calculateWalletValue] add report.json support
+# TODO [new] watch defillama api https://defillama.com/docs/api
 # TODO [new] get defi vault data https://nanoly.com/api
 # TODO [calculateWalletValue] add support for CG api key
 # TODO [main] see cmc fiat conversion
 #             https://coinmarketcap.com/api/documentation/v1/#operation/getV2ToolsPriceconversion
-# TODO [calculateWalletValue] retrieve value of lp position
-# TODO [calculateWalletValue] implement address to retrieving balance of crypto
-
 #
 #                           CHANGELOG
 #  DONE [calculateWalletValue] PLT rename asset with weight < %5 to OTHER 
@@ -62,3 +48,19 @@
 #                            https://stackoverflow.com/questions/14762181/adding-a-y-axis-label-to-secondary-y-axis-in-matplotlib
 #  DONE [calculateWalletValue] [crypto] add percentage increase/decrease on total spent and total value
 #                                      https://www.omnicalculator.com/math/percentage-increase
+# DONE [calculateWalletValue] use one file to dump both total and crypto
+#                             include total_value and crypto_value fields
+#                             the only one difference between running --crypto and --total 
+#                             is genPlt()
+# DONE [calculateWalletValue] add a flag to do (not) see fiat value in genPlt() img output 
+# DONE [calculateWalletValue] check if cmc key is valid https://coinmarketcap.com/alexandria/article/register-for-coinmarketcap-api  
+# DONE [walletBalanceReport] adapt to json changes
+# DONE [cryptoBalanceReport] adapt to json changes
+
+# DONE [lib] rewrite log logic, add ASK_USER_INPUT color
+# DONE [lib] add see portfolio in a date range
+# DONE [lib] add volatility index
+# DONE [walletBalanceReport] implement date range
+# DONE [cg_api] reduce time to get response from CoinGecko api
+# DONE [main] move updateJson() from main.py to lib.py
+# DONE [lib] improve updateJson() logic, add more use cases
