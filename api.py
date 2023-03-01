@@ -25,9 +25,7 @@ class cg_api:
             To find the right one just ctrl/cmd + F on cached_id_CG.json file
             and search the right one by looking at name field'''
 
-        self.cachedSymbol = ['crypto-com-chain', 'terra-luna-2', 'the-sandbox', 
-                            'astroport', 'energy-web-token', 'terra-name-service',
-                            'mars-protocol-2','usd-coin','thorchain', 'avalanche-2', 'cosmos', 'flow']
+        self.cachedSymbol = lib.loadJsonFile('used_id_CG.json')['used']
 
     # fetch all id, symbol and name from CoinGecko, run only once in a while to update it
     def fetchID(self) -> None: 

@@ -372,15 +372,16 @@ class calculateWalletValue:
 
         # add legend and title to pie chart
         plt.legend(title = "Symbols:")
+        title_stablePercentage = f'Stablecoin Percentage: {self.getStableCoinPercentage()}%'
         if self.privacy:
             # do not show total value
-            plt.title(f'{self.type.capitalize()} Balance: ***** {self.wallet["currency"]} | {self.wallet["date"]}', fontsize=13, weight='bold')
+            plt.title(f'{self.type.capitalize()} Balance: ***** {self.wallet["currency"]} | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
  
         elif self.type == 'crypto' and self.wallet['total_invested'] > 0:
             # if type == crypto AND total_invested > 0
             # show total value and percentage of change given total_invested
             increasePercent = round((self.wallet['total_crypto_stable'] - self.wallet['total_invested'])/self.wallet['total_invested'] *100, 2)
-            plt.title(f'{self.type.capitalize()} Balance: {self.wallet["total_crypto_stable"]} {self.wallet["currency"]} ({increasePercent}{" ↑" if increasePercent>0 else " ↓"}) | {self.wallet["date"]}', fontsize=13, weight='bold')
+            plt.title(f'{self.type.capitalize()} Balance: {self.wallet["total_crypto_stable"]} {self.wallet["currency"]} ({increasePercent}% {"↑" if increasePercent>0 else "↓"}) | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
         else:
             # if type == total OR
             # if type == crypto AND total_invested <= 0
@@ -391,7 +392,7 @@ class calculateWalletValue:
             else: exit()
 
             # show total value
-            plt.title(f'{self.type.capitalize()} Balance: {total} {self.wallet["currency"]} | {self.wallet["date"]}', fontsize=13, weight='bold')
+            plt.title(f'{self.type.capitalize()} Balance: {total} {self.wallet["currency"]} | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
 
         # format filename using current date
         filename = self.wallet['date'].replace("/",'_').replace(':','_').replace(' ',' T')+'.png'
@@ -415,6 +416,12 @@ class calculateWalletValue:
         for (symbol, [qta, value]) in temp.items():
             li.append([symbol, qta, value]) # convert dict to list
         return li
+    
+    def getStableCoinPercentage(self):
+        tot_stable = 0
+        for (_ ,[ _, value] ) in self.wallet['stable'].items():
+            tot_stable += value
+        return round(tot_stable/self.wallet['total_crypto_stable'] * 100, 2)
 
     def updateReportJson(self):
         temp = json.dumps({
@@ -522,6 +529,7 @@ class calculateWalletValue:
                 self.showInvalidSymbol()
 
             crypto = self.handleDataPlt()
+            self.getStableCoinPercentage()
             self.genPlt(crypto)
 
 # 

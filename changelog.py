@@ -1,7 +1,5 @@
 #
 #                           TO DO
-# TODO [api] move cg_api.cachedSymbol to an external json and load it
-# TODO [calculateWalletValue] add stablecoin percentage in crypto img
 # TODO [calculateWalletValue] fix error 429 coingecko
 # TODO [cryptoBalanceReport] implement date range
 # TODO [cryptoBalanceReport] implement volatility
@@ -64,3 +62,5 @@
 # DONE [cg_api] reduce time to get response from CoinGecko api
 # DONE [main] move updateJson() from main.py to lib.py
 # DONE [lib] improve updateJson() logic, add more use cases
+# DONE [api] move cg_api.cachedSymbol to an external json and load it
+# DONE [calculateWalletValue] add stablecoin percentage in crypto img
