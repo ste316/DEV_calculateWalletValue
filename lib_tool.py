@@ -42,19 +42,17 @@ class lib:
     @staticmethod
     def handlePrint(text: str, color: str, symbol: str, end = "\n", doubleSymbol = False):
         temp = lib.formatInput(text)
-        if temp[1]:
-            for item in temp[0]:
-                if lib.ENDC in item:
-                    item = item.replace(lib.ENDC, lib.ENDC+color)
-                lib.logConsole(f'{symbol} {item} {symbol if doubleSymbol else ""}', color=color, end=end)
-        else: lib.logConsole(f'{symbol} {temp[0]}', color, end)
+        for item in temp[0]:
+            if lib.ENDC in item:
+                item = item.replace(lib.ENDC, lib.ENDC+color)
+            lib.logConsole(f'{symbol} {item} {symbol if doubleSymbol else ""}', color=color, end=end)
 
     @staticmethod
     def formatInput(text: str):
         if "\n" in text:
             text = text.split('\n') 
             return text, True
-        return text, False
+        return [text], False
 
     @staticmethod
     def getSettings() -> dict:
@@ -89,7 +87,7 @@ class lib:
 
     @staticmethod
     # given a list of float
-    def calcAssetVolatility(total_value: list ):
+    def calcAssetVolatility(total_value: list):
         volatility = 0
         n = 0
         for i in range(len(total_value)-1):
@@ -143,31 +141,32 @@ class lib:
         isFirst = True
 
         with open(file_path, 'r') as f:
-            for line in f:
+            for (i, line) in enumerate(f):
                 try:
                     date = loads(line)
-                except decoder.JSONDecodeError: # sometimes it throw error on line 2
+                except decoder.JSONDecodeError as e: # sometimes it throw error on line 2
+                    lib.printFail(f'Json error, {file_path=} {e}')
                     pass
 
                 # parse date and convert to dd/mm/yyyy
                 date_file_line = datetime.strptime(date['date'].split(' ')[0], '%d/%m/%Y')
                 if isFirst: 
                     if formated_date_to_update < date_file_line: 
-                        # if date_to_update is before the first line' date
+                        # if date_to_update is before the first line's date
                         # add new_record at the beginning of file_path
                         new_file = new_record + str(open(file_path, 'r').read())
                         isFirst = False
                         break
 
                 if date_file_line == formated_date_to_update:
-                    new_file += new_record # insert new_record instead of old record(line)
+                    new_file += new_record+'\n' # insert new_record instead of old record(line)
                 else:
                     new_file += line # add line without modifing it
 
             if formated_date_to_update > date_file_line:
                 # if date_to_update is newer of last file's date 
                 # add new record at the end of file
-                new_file += new_record
+                new_file += new_record+'\n'
             
         with open(file_path, 'w') as f:
             if f.writable: f.write(new_file)
