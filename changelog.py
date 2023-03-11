@@ -1,10 +1,12 @@
 #
 #                           TO DO
-# TODO [calculateWalletValue] fix error 429 coingecko
+# TODO [calculateWalletValue] adapt to cg_api changes
+# TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
+# TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
+# TODO [walletBalanceReport, cryptoBalanceReport] add possibility to rerun without exit the program
 # TODO [cryptoBalanceReport] implement date range
-# TODO [cryptoBalanceReport] implement volatility
-# TODO [walletBalanceReport] implement volatility
-# TODO [lib] comment new code
+# TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
+# TODO [all] comment new code
 # TODO [lib] compare volatility with btc and eth volatility or other crypto index
 #            DONE [calculateWalletValue] add report.json support
 # TODO [new] watch defillama api https://defillama.com/docs/api
@@ -64,3 +66,5 @@
 # DONE [lib] improve updateJson() logic, add more use cases
 # DONE [api] move cg_api.cachedSymbol to an external json and load it
 # DONE [calculateWalletValue] add stablecoin percentage in crypto img
+# DONE [calculateWalletValue] fix stablecoin percentage in total calc
+# DONE [api][cg_api] fix error 429 coingecko, make onerequest with all id
