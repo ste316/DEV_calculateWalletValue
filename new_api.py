@@ -39,6 +39,7 @@ class cg_api_n():
     # @return dict eg. {'eth': 'ethereum', }
     def convertSymbol2ID(self, find: list[str]) -> dict[str: str]: 
         res = {'error': False}
+        checkSet = set(find)
         # make all string lower and remove all empty string (including '\n' '\t' ' ')
         find =  [x.lower() for x in find if x.replace(' ', '') != '']
 
@@ -48,7 +49,7 @@ class cg_api_n():
             if crypto in self.usedSymbol.keys():
                 res[crypto] = self.usedSymbol[crypto]
                 find.pop(find.index(crypto))
-        
+
         # retrieve all possible id from all_id_CG.json file
         temp = dict()
         with open(self.all_id_path, 'r') as f:
@@ -75,7 +76,7 @@ class cg_api_n():
                         ids = [id] # make id the only item in ids
                         # if after this loop ids have more than one item print an error
                         break
- 
+
             if len(ids) > 1:
                 err_count +=1
                 lib.printFail(f'CoinGecko error, multiple ids has been found {lib.WARNING_YELLOW}({ids}){lib.ENDC} for symbol {lib.WARNING_YELLOW}"{symbol}"{lib.ENDC}')
@@ -84,10 +85,14 @@ class cg_api_n():
             lib.printFail(f'Add the correct one in {lib.WARNING_YELLOW}{self.all_id_path}{lib.ENDC} in fixed field')
             res['error'] = True
         
+        missingCrypto = (checkSet - set(res.keys()))
+        if len(missingCrypto) > 0:
+            lib.printFail(f'The following symbol(s) are NOT available on CoinGecko/ do NOT exist: {list(missingCrypto)}')
+
         # update self.usedSymbol and dump it to cached_id_CG.json['used']
         self.usedSymbol.update(res)
         self.dumpUsedId()
-        return res
+        return res, missingCrypto
 
     # dump self.usedSymbol in cached_id_CG.json
     # note this function read and write cached_id_CG.json file 
@@ -116,7 +121,7 @@ class cg_api_n():
 
     def getPriceOf(self, find: list[str]) -> dict[str, float]:
         path = 'simple/price'
-        id = self.convertSymbol2ID(find=find)
+        id, missingCrypto = self.convertSymbol2ID(find=find)
         id = self.deleteControlItem(id)
         priceToReturn = dict()
         param = {
@@ -131,7 +136,7 @@ class cg_api_n():
         for item in res:
             priceToReturn[item] = res[item][self.currency]
         
-        return priceToReturn
+        return priceToReturn, missingCrypto
 
     def makeRequest(self, url: str, param: dict[str, Any]) -> requests.Response:
         error_count = 0
@@ -302,5 +307,5 @@ def getTicker(ticker: str, start: str, end: str) -> float:
 
 if __name__ == '__main__':
     a = cg_api_n('USD')
-    out = a.getPriceOf(['usdt','mim','ewt'])
-    #print(out)
+    out = a.getPriceOf(['usdt','mim','ewt','dezznuts'])
+    print(out)
