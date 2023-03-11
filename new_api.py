@@ -1,5 +1,5 @@
 from lib_tool import lib
-from typing import Any
+from typing import Any, Union
 from time import sleep
 import pandas_datareader as web
 import yfinance as yf
@@ -37,8 +37,9 @@ class cg_api_n():
     # convert 'find' to CoinGecko id
     # @param find crypto ticker eg. "ETH" "eth"
     # @return dict eg. {'eth': 'ethereum', }
-    def convertSymbol2ID(self, find: list[str]) -> dict[str: str]: 
+    def convertSymbol2ID(self, find: list[str]) -> dict[str: str] | set: 
         res = {'error': False}
+        checkSet = set(find)
         # make all string lower and remove all empty string (including '\n' '\t' ' ')
         find =  [x.lower() for x in find if x.replace(' ', '') != '']
 
@@ -87,7 +88,7 @@ class cg_api_n():
         # update self.usedSymbol and dump it to cached_id_CG.json['used']
         self.usedSymbol.update(res)
         self.dumpUsedId()
-        return res
+        return res, checkSet-set(res.keys())
 
     # dump self.usedSymbol in cached_id_CG.json
     # note this function read and write cached_id_CG.json file 
@@ -116,9 +117,10 @@ class cg_api_n():
 
     def getPriceOf(self, find: list[str]) -> dict[str, float]:
         path = 'simple/price'
-        id = self.convertSymbol2ID(find=find)
+        id, missingCryptoFromConvert = self.convertSymbol2ID(find=find)
         id = self.deleteControlItem(id)
         priceToReturn = dict()
+        checkSet = set(id.values())
         param = {
             'ids': ','.join(id.values()),
             'vs_currencies': self.currency,
@@ -130,8 +132,15 @@ class cg_api_n():
         # format data correctly
         for item in res:
             priceToReturn[item] = res[item][self.currency]
-        
-        return priceToReturn
+
+        missingCryptoFromPrice = checkSet-set(priceToReturn.keys())
+        if len(missingCryptoFromConvert) > 0:
+                lib.printFail(f'The following crypto(s) are NOT available in CoinGecko or do NOT exist: {lib.WARNING_YELLOW}{list(missingCryptoFromConvert)}{lib.ENDC}')
+                lib.printWarn(f'Make sure to fetch all new CoinGecko ids by set {lib.WARNING_YELLOW}fetchSymb{lib.ENDC} equals to true in your {lib.WARNING_YELLOW}settings.json{lib.ENDC} file')
+        if len(missingCryptoFromPrice) > 0:
+                lib.printFail(f'The following crypto(s) price(s) are NOT retrivable from CoinGecko: {lib.WARNING_YELLOW}{list(missingCryptoFromPrice)}{lib.ENDC}')
+
+        return priceToReturn, missingCryptoFromConvert, missingCryptoFromPrice
 
     def makeRequest(self, url: str, param: dict[str, Any]) -> requests.Response:
         error_count = 0
@@ -302,5 +311,5 @@ def getTicker(ticker: str, start: str, end: str) -> float:
 
 if __name__ == '__main__':
     a = cg_api_n('USD')
-    out = a.getPriceOf(['usdt','mim','ewt'])
-    #print(out)
+    out = a.getPriceOf(['usdt','mim','ewt', 'deeeeeznuts'])
+    print(out)
