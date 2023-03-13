@@ -1,5 +1,7 @@
 #
 #                           TO DO
+# TODO [calculateWalletValue] add option to (not) save plt image
+# TODO [all] adjust pic size
 # TODO [calculateWalletValue] adapt to cg_api changes
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
