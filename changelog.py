@@ -7,6 +7,7 @@
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
 # TODO [walletBalanceReport, cryptoBalanceReport] add possibility to rerun without exit the program
 # TODO [cryptoBalanceReport] implement date range
+# TODO [calculateWalletValue] implement volatility
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
 # TODO [all] comment new code
 # TODO [lib] compare volatility with btc and eth volatility or other crypto index
