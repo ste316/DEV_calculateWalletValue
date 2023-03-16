@@ -1,4 +1,4 @@
-from api import cg_api, cmc_api, yahooGetPriceOf, getTicker
+from new_api import cg_api_n, cmc_api, yahooGetPriceOf, getTicker
 from lib_tool import lib
 from pandas import read_csv
 from datetime import datetime
@@ -51,7 +51,7 @@ class calculateWalletValue:
         if self.settings['provider'] == 'cg':
             lib.printWarn('Api Provider: CoinGecko')
             self.provider = 'cg'
-            self.cg = cg_api(self.wallet["currency"])
+            self.cg = cg_api_n(self.wallet["currency"])
         elif self.settings['provider'] == 'cmc':
             lib.printWarn('Api Provider: CoinMarketCap')
             self.provider = 'cmc'
@@ -111,9 +111,9 @@ class calculateWalletValue:
 
     # CoinGecko retrieve price of a single crypto
     # return a float
-    def CGgetPriceOf(self, symbol: str) -> float: 
+    def CGgetPriceOf(self, symbol: list[str]) -> dict: 
         if self.provider == 'cg': # coingecko
-            price = self.cg.getPriceOf(symbol.lower())
+            price = self.cg.getPriceOf()
             if price == False: # if api wasn't able to retrieve price it return false
                 self.invalid_sym.append(symbol)
                 return False
@@ -421,7 +421,13 @@ class calculateWalletValue:
         tot_stable = 0
         for (_ ,[ _, value] ) in self.wallet['stable'].items():
             tot_stable += value
-        return round(tot_stable/self.wallet['total_crypto_stable'] * 100, 2)
+        
+        if self.type == 'crypto':
+            return round(tot_stable/self.wallet['total_crypto_stable'] * 100, 2)
+        elif self.type == 'total':
+            return round(tot_stable/self.wallet['total_value'] * 100, 2)
+        else:
+            lib.printFail('Unexpected error')
 
     def updateReportJson(self):
         temp = json.dumps({
@@ -699,9 +705,6 @@ class walletBalanceReport:
 
         print(volatility, vol)
 
-            
-
-
     # create PLT
     def genPlt(self):
         lib.printWarn(f'Creating chart...')
@@ -756,6 +759,8 @@ class cryptoBalanceReport:
 
     # ask a crypto from user input given a list
     def getTickerInput(self) -> None:
+        #special_ticker = ['stablecoin']
+        #ticker = special_ticker+self.cryptos
         for (i, r) in enumerate(self.cryptos):
             print(f"[{i}] {r}", end='\n')
         
@@ -773,6 +778,7 @@ class cryptoBalanceReport:
             except:
                 lib.printFail('Insert a valid number...')
         
+        # handle special_ticker
         self.ticker = self.cryptos[index]
 
     # collect amount, fiat value and date
