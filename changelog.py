@@ -1,11 +1,10 @@
 #
 #                           TO DO
-# TODO [api] fix convertSymbol2ID() to return the correct item
+# TODO [calculateWalletValue] uniform symbol str structure( all lower )
 # TODO [calculateWalletValue] add function to get asset list from self.wallet
 # TODO [calculateWalletValue] change internal structure of self.wallet
 #                             { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
 # TODO [calculateWalletValue] add option to (not) save plt image
-# TODO [calculateWalletValue] adapt to cg_api changes
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
 # TODO [walletBalanceReport, cryptoBalanceReport] add possibility to rerun without exit the program
@@ -75,3 +74,6 @@
 # DONE [calculateWalletValue] fix stablecoin percentage in total calc
 # DONE [api][cg_api] fix error 429 coingecko, make onerequest with all id
 # DONE [calculateWalletValue] adjust pic size
+# DONE [api][cg_api] fix getPriceOf() to return the correct item
+# DONE [calculateWalletValue] adapt to cg_api changes
+# DONE [calculateWalletValue] fix json file naming, handling

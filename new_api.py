@@ -39,9 +39,9 @@ class cg_api_n():
     # @return dict eg. {'eth': 'ethereum', }
     def convertSymbol2ID(self, find: list[str]) -> dict[str: str] | set: 
         res = {'error': False}
-        checkSet = set(find)
         # make all string lower and remove all empty string (including '\n' '\t' ' ')
         find =  [x.lower() for x in find if x.replace(' ', '') != '']
+        checkSet = set(find)
 
         # check if items in find list are already cached in cached_id_CG.json['used]
         # if so pop it from find list
@@ -49,7 +49,7 @@ class cg_api_n():
             if crypto in self.usedSymbol.keys():
                 res[crypto] = self.usedSymbol[crypto]
                 find.pop(find.index(crypto))
-        
+
         # retrieve all possible id from all_id_CG.json file
         temp = dict()
         with open(self.all_id_path, 'r') as f:
@@ -120,7 +120,7 @@ class cg_api_n():
         id, missingCryptoFromConvert = self.convertSymbol2ID(find=find)
         id = self.deleteControlItem(id)
         priceToReturn = dict()
-        checkSet = set(id.values())
+        checkSet = set(id.keys())
         param = {
             'ids': ','.join(id.values()),
             'vs_currencies': self.currency,
@@ -131,7 +131,8 @@ class cg_api_n():
         res = self.makeRequest(url=self.baseurl+path, param=param).json()
         # format data correctly
         for item in res:
-            priceToReturn[item] = res[item][self.currency]
+            index = [i for i in id if id[i] == item][0]
+            priceToReturn[index] = res[item][self.currency]
 
         missingCryptoFromPrice = checkSet-set(priceToReturn.keys())
         if len(missingCryptoFromConvert) > 0:
@@ -183,7 +184,9 @@ class cmc_api:
         self.currency = currency
         self.key = api_key
         self.baseurl = f'https://pro-api.coinmarketcap.com/v1/'
-        self.cachedSymbol = lib.loadJsonFile('used_id_CMC.json')
+        self.cacheFile = 'cached_id_CMC.json'
+        self.all_id_file = 'all_id_CMC.json'
+        self.cachedSymbol = lib.loadJsonFile(self.cacheFile)
 
         headers = { 
             'Accepts': 'application/json',
@@ -219,7 +222,7 @@ class cmc_api:
     def fetchID(self) -> int:
         url = 'cryptocurrency/map'
         res = self.session.get(self.baseurl+url)
-        open('cached_id_CMC.json', 'w').write(json.dumps(res.json(), indent=4))
+        open(self.all_id_file, 'w').write(json.dumps(res.json(), indent=4))
 
     # convert 'symbols' in CMC ids
     # @param symbols list of crypto tickers ["BTC", "ETH"]
@@ -235,7 +238,7 @@ class cmc_api:
 
         if len(symbols) > 0: 
             found = 0
-            data = json.loads(open('cached_id_CMC.json', 'r').read())['data'] # once in a while run fetchID() to update it
+            data = json.loads(open('all_id_CMC.json', 'r').read())['data'] # once in a while run fetchID() to update it
 
             # check for every symbol in data
             for i in range(len(data)):
@@ -252,7 +255,7 @@ class cmc_api:
 
     # update used_id_CMC.json
     def updateUsedSymbol(self) -> None:
-        with open('used_id_CMC.json', 'w') as f:
+        with open(self.cacheFile, 'w') as f:
             f.write(json.dumps(self.cachedSymbol))
 
     # convert 'symbols' to CMC ids and retrieve their prices
@@ -311,5 +314,5 @@ def getTicker(ticker: str, start: str, end: str) -> float:
 
 if __name__ == '__main__':
     a = cg_api_n('USD')
-    out = a.getPriceOf(['usdt','mim','ewt', 'deeeeeznuts'])
+    out = a.getPriceOf(['RUNE', 'LINK', 'EWT', 'MATIC', 'ATOM'])
     print(out)

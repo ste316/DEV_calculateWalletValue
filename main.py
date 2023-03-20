@@ -113,10 +113,11 @@ class calculateWalletValue:
     # return a float
     def CGgetPriceOf(self, symbol: list[str]) -> dict: 
         if self.provider == 'cg': # coingecko
-            price = self.cg.getPriceOf()
-            if price == False: # if api wasn't able to retrieve price it return false
-                self.invalid_sym.append(symbol)
-                return False
+            price, missingSet1, missingSet2 = self.cg.getPriceOf(symbol)
+            if len(missingSet1) > 0:
+                self.invalid_sym.append(list(missingSet1))
+            if len(missingSet2) > 0:
+                self.invalid_sym.append(list(missingSet2))
             return price
 
         lib.printFail('Unexpected error, incorrect price provider')
@@ -265,24 +266,29 @@ class calculateWalletValue:
         tot_crypto_stable = 0.0
         lib.printWarn('Retriving current price...')
 
+        cryptoList = list()
+        stableList = list()
+
         # retrieve price and calc value
         for (symbol, [qta, _]) in self.wallet['crypto'].items():
-            price = self.CGgetPriceOf(symbol)
-            if price == False: # if api cannot retrieve price
-                continue # skip
+            cryptoList.append(symbol)
 
-            value = round(price*qta, 2)
-            self.wallet['crypto'][symbol][1] = value
+        print(cryptoList)
+        prices = self.CGgetPriceOf(cryptoList)
+        print(prices)
+        for (symbol, value) in prices.items():
+            value = round(value * self.wallet['crypto'][symbol.upper()][0] ,2)
+            self.wallet['crypto'][symbol.upper()][1] = value
             tot += value
             tot_crypto_stable += value
 
         for (symbol, [qta, _]) in self.wallet['stable'].items():
-            price = self.CGgetPriceOf(symbol)
-            if price == False: # if api cannot retrieve price
-                continue # skip
+            stableList.append(symbol)
 
-            value = round(price*qta, 2)
-            self.wallet['stable'][symbol][1] = value
+        prices = self.CGgetPriceOf(stableList)
+        for symbol, value in prices.items():
+            value = round(value *  self.wallet['stable'][symbol.upper()][0],2)
+            self.wallet['stable'][symbol.upper()][1] = value
             tot += value
             tot_crypto_stable += value
 
@@ -366,7 +372,7 @@ class calculateWalletValue:
         sns.set_style('whitegrid')
         #sns.color_palette('pastel')
         # define size of the image
-        plt.figure(figsize=(6, 5), tight_layout=True)
+        plt.figure(figsize=(7, 6), tight_layout=True)
         # create a pie chart with value in 'xx.x%' format
         plt.pie(y, labels = mylabels, autopct='%1.1f%%', startangle=90, shadow=False)
 
