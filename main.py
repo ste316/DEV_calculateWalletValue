@@ -273,9 +273,7 @@ class calculateWalletValue:
         for (symbol, [qta, _]) in self.wallet['crypto'].items():
             cryptoList.append(symbol)
 
-        print(cryptoList)
         prices = self.CGgetPriceOf(cryptoList)
-        print(prices)
         for (symbol, value) in prices.items():
             value = round(value * self.wallet['crypto'][symbol.upper()][0] ,2)
             self.wallet['crypto'][symbol.upper()][1] = value
