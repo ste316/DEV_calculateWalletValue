@@ -1,16 +1,15 @@
 #
 #                           TO DO
-# TODO [calculateWalletValue] uniform symbol str structure( all lower )
-# TODO [calculateWalletValue] add function to get asset list from self.wallet
-# TODO [calculateWalletValue] change internal structure of self.wallet
-#                             { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
-# TODO [calculateWalletValue] add option to (not) save plt image
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
-# TODO [walletBalanceReport, cryptoBalanceReport] add possibility to rerun without exit the program
 # TODO [cryptoBalanceReport] implement date range
 # TODO [calculateWalletValue] implement volatility
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
+# TODO [calculateWalletValue] uniform symbol str structure( all lower )
+# TODO [calculateWalletValue] change internal structure of self.wallet
+#                             { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
+# TODO [calculateWalletValue] fix handleDataPlt when one asset is a major % of self.wallet['total_crypto_stable']
+# TODO [calculateWalletValue] add function to get asset list from self.wallet
 # TODO [all] comment new code
 # TODO [lib] compare volatility with btc and eth volatility or other crypto index
 #            DONE [calculateWalletValue] add report.json support
@@ -77,3 +76,7 @@
 # DONE [api][cg_api] fix getPriceOf() to return the correct item
 # DONE [calculateWalletValue] adapt to cg_api changes
 # DONE [calculateWalletValue] fix json file naming, handling
+# DONE [calculateWalletValue] add option to (not) save plt image
+# DONE [walletBalanceReport, cryptoBalanceReport] add possibility to rerun without exit the program
+# DONE [lib] add getConfig, add getUserInput, improved leggibility getIndexOfDate, modify getUserInputDate to use getUserInput
+# DONE [calculateWalletValue, walletBalanceReport, cryptoBalanceReport] add external config

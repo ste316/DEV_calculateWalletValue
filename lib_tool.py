@@ -59,6 +59,10 @@ class lib:
         return lib.loadJsonFile('settings.json')
 
     @staticmethod
+    def getConfig() -> dict:
+        return lib.loadJsonFile('config.json')
+
+    @staticmethod
     def loadJsonFile(file: str) -> dict:
         with open(file,'r') as f:
             if(f.readable):
@@ -111,26 +115,37 @@ class lib:
 
     @staticmethod
     def getIndexOfDate(dateToFind: str, list: list):
+        found = False
+        index = 0
         for (i, item) in enumerate(list):
             if lib.parse_formatDate(item) == lib.parse_formatDate(dateToFind):
-                return i, True
-        return 0, False
+                found = True; index = i
+                break
+        return index, found
 
     @staticmethod
     def getUserInputDate(listOfDate):
+        try:
+            temp = lib.getUserInput()
+            if len(temp) == 0:
+                return 'default'
+            if lib.isValidDate(temp):
+                index, found = lib.getIndexOfDate(temp, listOfDate)
+                if found == False:
+                    raise ValueError
+                return index
+            else: raise ValueError
+        except ValueError:
+            lib.printFail('Invalid date, enter a valid date to continue or press ^C')
+
+    @staticmethod
+    def getUserInput() -> str:
         while True:
             try:
-                temp = input()
-                if len(temp) == 0:
-                    return 'default'
-                if lib.isValidDate(temp):
-                    index = lib.getIndexOfDate(temp, listOfDate)
-                    if index[1] == False:
-                        raise ValueError
-                    return index[0]
-                else: raise ValueError
-            except ValueError:
-                lib.printFail('Invalid date, enter a valid date to continue')
+                return input()
+            except KeyboardInterrupt:
+                lib.printWarn('^C detected, aborting...')
+                exit()
 
     @staticmethod
     # read json file, update

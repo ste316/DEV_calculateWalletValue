@@ -21,11 +21,12 @@ class calculateWalletValue:
     # Initialization variable and general settings
     def __init__(self, type: str, load = False, privacy = False) -> None:
         self.settings = lib.getSettings()
-        self.version = 'CWV_1.1.0'
+        self.config = lib.getConfig()
         self.invalid_sym = []
         self.provider = ''
-        self.supportedFiat =  ['eur', 'usd']
-        self.supportedStablecoin = ['usdt', 'usdc','dai']
+        self.version = self.config['version']
+        self.supportedFiat = self.config['supportedFiat']
+        self.supportedStablecoin = self.config['supportedStablecoin']
         self.load = load # option to load data from json, see calculateWalletValue.genPltFromJson()
         self.privacy = privacy
         self.wallet = {
@@ -404,8 +405,9 @@ class calculateWalletValue:
         if not self.load:
             # when load is enabled it get data from past record from walletValue.json
             # so you do NOT need to save the img and do NOT need to update json file
-            plt.savefig(f'{self.settings["grafico_path"]}\\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}') #save image
-            lib.printOk(f'Pie chart image successfully saved in {self.settings["grafico_path"]}\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}')
+            if self.settings['save_img']:
+                plt.savefig(f'{self.settings["grafico_path"]}\\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}') #save image
+                lib.printOk(f'Pie chart image successfully saved in {self.settings["grafico_path"]}\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}')
             self.updateWalletValueJson()
             self.updateReportJson()
 
@@ -416,7 +418,7 @@ class calculateWalletValue:
     # [symbol, qta, value]
     def getWalletAsList(self) -> list:
         li = list()
-        temp =  self.wallet['crypto'] | self.wallet['stable'] | self.wallet['fiat'] # merge dict
+        temp = self.wallet['crypto'] | self.wallet['stable'] | self.wallet['fiat'] # merge dict
         for (symbol, [qta, value]) in temp.items():
             li.append([symbol, qta, value]) # convert dict to list
         return li
@@ -550,7 +552,10 @@ class walletBalanceReport:
     # Initialization variable and general settings
     def __init__(self, type: str) -> None: 
         self.settings = lib.getSettings()
-        self.version = 'WBR_1.1.0'
+        self.config = lib.getConfig()
+        self.version = self.config['version']
+        self.supportedFiat = self.config['supportedFiat']
+        self.supportedStablecoin = self.config['supportedStablecoin']
         self.settings['wallet_path'] = self.settings['path']+ '\\walletValue.json'
         self.data = {
             'date': [],
@@ -723,12 +728,19 @@ class walletBalanceReport:
         plt.show()
 
     def run(self) -> None:
-        self.loadDatetime()
-        self.chooseDateRange()
-        # self.volatility = lib.calcAssetVolatility(self.data['total_value'])
-        self.volatility = 0
-        self.calcTotalVolatility()
-        #self.genPlt()
+        while True:
+            self.loadDatetime()
+            self.chooseDateRange()
+            # self.volatility = lib.calcAssetVolatility(self.data['total_value'])
+            self.volatility = 0
+            #self.calcTotalVolatility()
+            self.genPlt()
+
+            lib.printAskUserInput('Do you want to show another graph? (y/N)')
+            temp = lib.getUserInput()
+            if temp.replace(' ', '') == '' or temp in ['n', 'N']:
+                break
+
 
 # 
 # See amount and fiat value of a single crypto over time
@@ -739,7 +751,10 @@ class cryptoBalanceReport:
     # Initialization variable and general settings
     def __init__(self) -> None: 
         self.settings = lib.getSettings()
-        self.version = 'CBR_1.1.0'
+        self.config = lib.getConfig()
+        self.version = self.config['version']
+        self.supportedFiat = self.config['supportedFiat']
+        self.supportedStablecoin = self.config['supportedStablecoin']
         lib.printWelcome(f'Welcome to Crypto Balance Report!')
         self.settings['wallet_path'] = self.settings['path']+ '\\walletValue.json'
         self.cryptos = set()
@@ -773,12 +788,10 @@ class cryptoBalanceReport:
 
         while not gotIndex:
             try:
-                index = int(input())
+                index = lib.getUserInput()
                 if index >= 0 and index <= len(self.cryptos):
                     gotIndex = True
                 else: lib.printFail('Insert an in range number...')
-            except KeyboardInterrupt:
-                exit()
             except:
                 lib.printFail('Insert a valid number...')
         
@@ -852,10 +865,16 @@ class cryptoBalanceReport:
         plt.show()
 
     def run(self) -> None:
-        self.retrieveCryptoList()
-        self.getTickerInput()
-        self.retrieveDataFromJson()
-        self.genPlt()
+        while True:
+            self.retrieveCryptoList()
+            self.getTickerInput()
+            self.retrieveDataFromJson()
+            self.genPlt()
+
+            lib.printAskUserInput('Do you want to show another graph? (y/N)')
+            temp = lib.getUserInput()
+            if temp.replace(' ', '') == '' or temp in ['n', 'N']:
+                break
 
 # parse arguments
 def get_args(): 
