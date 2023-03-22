@@ -1,0 +1,20 @@
+{
+    "fixed": [
+        "crypto-com-chain",
+        "terra-luna-2",
+        "the-sandbox",
+        "astroport",
+        "mars-protocol-a7fcbcfb-fd61-4017-92f0-7ee9f9cc6da3",
+        "usd-coin",
+        "thorchain",
+        "avalanche-2",
+        "cosmos",
+        "flow",
+        "ethereum",
+        "energy-web-token",
+        "magic-internet-money",
+        "solana"
+    ],
+    "used": {
+    }
+}
