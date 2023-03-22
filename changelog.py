@@ -5,8 +5,6 @@
 # TODO [calculateWalletValue] implement volatility
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
 # TODO [calculateWalletValue] uniform symbol str structure( all lower )
-# TODO [calculateWalletValue] change internal structure of self.wallet
-#                             { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
 # TODO [calculateWalletValue] fix handleDataPlt when one asset is a major % of self.wallet['total_crypto_stable']
 # TODO [calculateWalletValue] add function to get asset list from self.wallet
 # TODO [all] comment new code
@@ -82,3 +80,6 @@
 # DONE [walletBalanceReport, cryptoBalanceReport] fix rerun process
 # DONE [lib] fix getUserInputDate, function nested in a while True
 # DONE [cryptoBalanceReport] implement date range
+# DONE [calculateWalletValue] change internal structure of self.wallet
+#                             { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
+# DONE [calculateWalletValue] adapt to self.wallet changes
