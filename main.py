@@ -216,22 +216,18 @@ class calculateWalletValue:
     # pass fullItem=True to get a list of [symbol, qta, value, type]
     # pass getQta or getValue to get a list of [symbol, ?qta, ?value]
     def getAssetFromWallet(self, typeOfAsset: list, fullItem = False, getQta = False, getValue = False) -> list[list] | list[str]:
-        print(set(typeOfAsset).intersection(set(['crypto', 'stable', 'fiat', 'all'])))
-
         if set(typeOfAsset).intersection(set(['crypto', 'stable', 'fiat', 'all'])): # empty set are evaluated False
-            print('get asset yessur')
             listOfAsset = list()
             isAll = False
 
             if 'all' in typeOfAsset: isAll = True
-
-            # print(self.wallet)
             for item in self.wallet['asset'].items():
                 
                 item = list(item)
                 item = [item[0]]+item[1]
-                # print(f'{item=}') item=['ATOM', 40.0296, 0.0, 'crypto']
-                #                        symbol, qta, value, type
+                # final result
+                # item=['ATOM', 1.0, 12.5, 'crypto']
+                #       symbol, qta,    value,  type
                 if item[3] in typeOfAsset or isAll: 
                     if fullItem: listOfAsset.append(item); continue
                     elif getQta and getValue: listOfAsset.append([item[0], item[1], item[2]]); continue
