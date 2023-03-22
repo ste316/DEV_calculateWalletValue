@@ -1,5 +1,6 @@
 #
 #                           TO DO
+# TODO [cryptoBalanceReport] genPlt rotate date to read better
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
 # TODO [calculateWalletValue] implement volatility
