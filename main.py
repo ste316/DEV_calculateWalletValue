@@ -740,6 +740,7 @@ class walletBalanceReport:
             temp = lib.getUserInput()
             if temp.replace(' ', '') == '' or temp in ['n', 'N']:
                 break
+            self.__init__()
 
 
 # 
@@ -758,7 +759,8 @@ class cryptoBalanceReport:
         lib.printWelcome(f'Welcome to Crypto Balance Report!')
         self.settings['wallet_path'] = self.settings['path']+ '\\walletValue.json'
         self.cryptos = set()
-        self.ticker = ''
+        self.ticker = []
+        self.special_ticker = ['stablecoin']
         self.data = {
             'date': [],
             'amount': [],
@@ -771,15 +773,12 @@ class cryptoBalanceReport:
             for line in f:
                 crypto_list = json.loads(line)['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
                 for sublist in crypto_list:
-                    if sublist[0].isupper():
-                        self.cryptos.add(sublist[0])
+                    self.cryptos.add(sublist[0])
         
         self.cryptos = sorted(list(self.cryptos))
 
     # ask a crypto from user input given a list
     def getTickerInput(self) -> None:
-        #special_ticker = ['stablecoin']
-        #ticker = special_ticker+self.cryptos
         for (i, r) in enumerate(self.cryptos):
             print(f"[{i}] {r}", end='\n')
         
@@ -788,15 +787,41 @@ class cryptoBalanceReport:
 
         while not gotIndex:
             try:
-                index = lib.getUserInput()
+                index = int(lib.getUserInput())
                 if index >= 0 and index <= len(self.cryptos):
                     gotIndex = True
                 else: lib.printFail('Insert an in range number...')
-            except:
+            except Exception as e:
+                print(e)
                 lib.printFail('Insert a valid number...')
         
         # handle special_ticker
+        #if index == 0: # stablecoin
+        #    self.ticker = self.supportedStablecoin
+        #else: self.ticker = [self.cryptos[index-len(self.special_ticker)].lower()]
         self.ticker = self.cryptos[index]
+
+    def chooseDateRange(self):
+        while True:
+            lib.printAskUserInput("Choose a date range, enter dates one by one")
+            lib.printAskUserInput(f"{lib.FAIL_RED}NOTE!{lib.ENDC} default dates are the first and last recorded date on walletValue.json\nFirst date")
+            lib.printAskUserInput(f'\tinsert a date, press enter to use the default one, {lib.FAIL_RED} format: dd/mm/yyyy {lib.ENDC}')
+            firstIndex = lib.getUserInputDate(self.data['date'])
+            if firstIndex == 'default':
+                firstIndex = 0
+            lib.printAskUserInput("Last date:")
+            lib.printAskUserInput(f'\tinsert a date, press enter to use the default one, {lib.FAIL_RED} format: dd/mm/yyyy {lib.ENDC}')
+            lastIndex = lib.getUserInputDate(self.data['date'])
+            if lastIndex == 'default':
+                lastIndex = len(self.data['date'])-1
+            if lastIndex > firstIndex:
+                # to understand why is lastIndex+1 search python list slicing
+                self.daterange = tuple([firstIndex, lastIndex+1])
+                self.data['date'] = self.data['date'][firstIndex:lastIndex+1]
+                self.data['amount'] = self.data['amount'][firstIndex:lastIndex+1]
+                self.data['fiat'] = self.data['fiat'][firstIndex:lastIndex+1]
+                break
+            else: lib.printFail("Invalid range of date")
 
     # collect amount, fiat value and date
     # fill amounts of all empty day with the last available
@@ -869,12 +894,14 @@ class cryptoBalanceReport:
             self.retrieveCryptoList()
             self.getTickerInput()
             self.retrieveDataFromJson()
+            self.chooseDateRange()
             self.genPlt()
 
             lib.printAskUserInput('Do you want to show another graph? (y/N)')
             temp = lib.getUserInput()
             if temp.replace(' ', '') == '' or temp in ['n', 'N']:
                 break
+            self.__init__()
 
 # parse arguments
 def get_args(): 

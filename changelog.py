@@ -2,7 +2,6 @@
 #                           TO DO
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
-# TODO [cryptoBalanceReport] implement date range
 # TODO [calculateWalletValue] implement volatility
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
 # TODO [calculateWalletValue] uniform symbol str structure( all lower )
@@ -80,3 +79,6 @@
 # DONE [walletBalanceReport, cryptoBalanceReport] add possibility to rerun without exit the program
 # DONE [lib] add getConfig, add getUserInput, improved leggibility getIndexOfDate, modify getUserInputDate to use getUserInput
 # DONE [calculateWalletValue, walletBalanceReport, cryptoBalanceReport] add external config
+# DONE [walletBalanceReport, cryptoBalanceReport] fix rerun process
+# DONE [lib] fix getUserInputDate, function nested in a while True
+# DONE [cryptoBalanceReport] implement date range

@@ -125,18 +125,19 @@ class lib:
 
     @staticmethod
     def getUserInputDate(listOfDate):
-        try:
-            temp = lib.getUserInput()
-            if len(temp) == 0:
-                return 'default'
-            if lib.isValidDate(temp):
-                index, found = lib.getIndexOfDate(temp, listOfDate)
-                if found == False:
-                    raise ValueError
-                return index
-            else: raise ValueError
-        except ValueError:
-            lib.printFail('Invalid date, enter a valid date to continue or press ^C')
+        while True:
+            try:
+                temp = lib.getUserInput().replace(' ', '')
+                if len(temp) == 0:
+                    return 'default'
+                if lib.isValidDate(temp):
+                    index, found = lib.getIndexOfDate(temp, listOfDate)
+                    if found == False:
+                        raise ValueError
+                    return index
+                else: raise ValueError
+            except ValueError:
+                lib.printFail('Invalid date, enter a valid date to continue or press ^C')
 
     @staticmethod
     def getUserInput() -> str:
