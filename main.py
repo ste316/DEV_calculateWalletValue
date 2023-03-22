@@ -30,11 +30,10 @@ class calculateWalletValue:
         self.load = load # option to load data from json, see calculateWalletValue.genPltFromJson()
         self.privacy = privacy
         self.wallet = {
-            # stable, crypto and fiat are structured so 
-            # {<symbol>: [<amount>, <value>], ...}
-            'stable': dict(),
-            'crypto': dict(),
-            'fiat': dict(),
+            # stable, crypto and fiat are structured so
+            # {<symbol>: [<amount>, <value>], ...} 
+            # { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
+            'asset' : dict(),
             'total_invested': 0,
             'currency': self.settings['currency']
         }
@@ -179,11 +178,11 @@ class calculateWalletValue:
 
             # this block of 3 if statement sort the symbol 
             # in fiat, stablecoin crypto
-            if symbol.lower() in self.supportedFiat: 
-                if symbol.upper() in self.wallet['fiat'].keys():
+            if symbol.lower() in self.supportedFiat:  # FIAT
+                if symbol.upper() in self.getAssetFromWallet(['fiat']):
                     # when symbol is already in wallet
                     # add new qta (+=)
-                    self.wallet['fiat'][str(symbol).upper()][0] += qta
+                    self.wallet['asset'][str(symbol).upper()][0] += qta
                 else: 
                     # when symbol is NOT in wallet
                     if self.load:
@@ -191,26 +190,58 @@ class calculateWalletValue:
                         # without += operator since, it get wallet data 
                         # from walletValue.json record
                         # this implies that qta and value is correct
-                        self.wallet['fiat'][str(symbol).upper()] = [qta, value]
+                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'fiat']
                     else: 
                         # add qta, value will be calculated later
-                        self.wallet['fiat'][str(symbol).upper()] = [qta, 0.0]
+                        self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'fiat']
 
-            elif symbol.lower() in self.supportedStablecoin:
-                if symbol.upper() in self.wallet['stable'].keys():
-                    self.wallet['stable'][str(symbol).upper()][0] += qta
+            elif symbol.lower() in self.supportedStablecoin: # STABLE
+                if symbol.upper() in self.getAssetFromWallet(['stable']):
+                    self.wallet['asset'][str(symbol).upper()][0] += qta
                 else: 
                     if self.load:
-                        self.wallet['stable'][str(symbol).upper()] = [qta, value]
-                    else: self.wallet['stable'][str(symbol).upper()] = [qta, 0.0]
+                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'stable']
+                    else: self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'stable']
 
-            else:
-                if symbol.upper() in self.wallet['crypto'].keys():
-                    self.wallet['crypto'][str(symbol).upper()][0] += qta
+            else: # CRYPTO
+                if symbol.upper() in self.getAssetFromWallet(['crypto']):
+                    self.wallet['asset'][str(symbol).upper()][0] += qta
                 else: 
                     if self.load:
-                        self.wallet['crypto'][str(symbol).upper()] = [qta, value]
-                    else: self.wallet['crypto'][str(symbol).upper()] = [qta, 0.0]
+                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'crypto']
+                    else: self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'crypto']
+
+    # get assets from self.wallet, specify typeOfAsset('crypto' or 'stable' or 'fiat' or 'all')
+    # default return: list of symbol filtered by type
+    # pass fullItem=True to get a list of [symbol, qta, value, type]
+    # pass getQta or getValue to get a list of [symbol, ?qta, ?value]
+    def getAssetFromWallet(self, typeOfAsset: list, fullItem = False, getQta = False, getValue = False) -> list[list] | list[str]:
+        print(set(typeOfAsset).intersection(set(['crypto', 'stable', 'fiat', 'all'])))
+
+        if set(typeOfAsset).intersection(set(['crypto', 'stable', 'fiat', 'all'])): # empty set are evaluated False
+            print('get asset yessur')
+            listOfAsset = list()
+            isAll = False
+
+            if 'all' in typeOfAsset: isAll = True
+
+            # print(self.wallet)
+            for item in self.wallet['asset'].items():
+                
+                item = list(item)
+                item = [item[0]]+item[1]
+                # print(f'{item=}') item=['ATOM', 40.0296, 0.0, 'crypto']
+                #                        symbol, qta, value, type
+                if item[3] in typeOfAsset or isAll: 
+                    if fullItem: listOfAsset.append(item); continue
+                    elif getQta and getValue: listOfAsset.append([item[0], item[1], item[2]]); continue
+                    elif getQta: listOfAsset.append([item[0], item[1]]); continue
+                    elif getValue: listOfAsset.append([item[0], item[2]]); continue
+                    else: listOfAsset.append(item[0]); continue
+
+            return listOfAsset
+
+        else: return []
 
     # CoinMarketCap calculate the value of crypto and format data to be used in handleDataPlt()
     def CMCcalcValue(self):
@@ -219,40 +250,29 @@ class calculateWalletValue:
         lib.printWarn('Retriving current price...')
 
         # get prices of crypto and stable
-        cryptoList = list(self.wallet['crypto'].keys())
-        stableList = list(self.wallet['stable'].keys())
+        cryptoList = self.getAssetFromWallet(['crypto'])
+        stableList = self.getAssetFromWallet(['stable'])
         rawData = self.CMCgetPriceOf(cryptoList+stableList)
 
         # unpack value and divide it back to crypto and stable
         for (symbol, price) in rawData.items():
-            if symbol in cryptoList:
-                value = round(price * self.wallet['crypto'][symbol][0] ,2) # price * qta
-                self.wallet['crypto'][symbol][1] = value
-                tot += value
-                tot_crypto_stable += value
-            
-            elif symbol in stableList:
-                value = round(price * self.wallet['stable'][symbol][0] ,2) # price * qta
-                self.wallet['stable'][symbol][1] = value
-                tot += value
-                tot_crypto_stable += value
-            
-            else:
-                lib.printFail(f'Unexpected error, {symbol} not reconised')
-                continue
+            value = round(price * self.wallet['asset'][symbol][0] ,2) # price * qta
+            self.wallet['asset'][symbol][1] = value
+            tot += value
+            tot_crypto_stable += value
 
-        for (symbol, [qta, _]) in self.wallet['fiat'].items():
+        for symbol, qta in self.getAssetFromWallet(['fiat'], getQta=True):
             # if symbol is the main currency -> return the qta
             if symbol.upper() == self.wallet["currency"]:
                 value = round(qta, 2)
                 tot += value
-                self.wallet['fiat'][symbol][1] = value
+                self.wallet['asset'][symbol][1] = value
 
             # you want to exchange the other fiat currency into the currency in settings
             elif symbol.lower() in self.supportedFiat:
                 price = yahooGetPriceOf(f'{self.wallet["currency"]}{symbol}=X')
                 value = round(price * qta, 2)
-                self.wallet['fiat'][symbol][1] = value
+                self.wallet['asset'][symbol][1] = value
                 tot += value 
             else:
                 self.invalid_sym.append(symbol)
@@ -267,31 +287,17 @@ class calculateWalletValue:
         tot_crypto_stable = 0.0
         lib.printWarn('Retriving current price...')
 
-        cryptoList = list()
-        stableList = list()
+        cryptoList = self.getAssetFromWallet(['crypto'])
+        stableList = self.getAssetFromWallet(['stable'])
 
-        # retrieve price and calc value
-        for (symbol, [qta, _]) in self.wallet['crypto'].items():
-            cryptoList.append(symbol)
-
-        prices = self.CGgetPriceOf(cryptoList)
-        for (symbol, value) in prices.items():
-            value = round(value * self.wallet['crypto'][symbol.upper()][0] ,2)
-            self.wallet['crypto'][symbol.upper()][1] = value
+        rawData = self.CGgetPriceOf(cryptoList+stableList)
+        for symbol, value in rawData.items():
+            value = round(value * self.wallet['asset'][symbol.upper()][0] ,2)
+            self.wallet['asset'][symbol.upper()][1] = value
             tot += value
             tot_crypto_stable += value
 
-        for (symbol, [qta, _]) in self.wallet['stable'].items():
-            stableList.append(symbol)
-
-        prices = self.CGgetPriceOf(stableList)
-        for symbol, value in prices.items():
-            value = round(value *  self.wallet['stable'][symbol.upper()][0],2)
-            self.wallet['stable'][symbol.upper()][1] = value
-            tot += value
-            tot_crypto_stable += value
-
-        for (symbol, [qta, _]) in self.wallet['fiat'].items():
+        for symbol, qta in self.getAssetFromWallet(['fiat'], getQta=True):
             # if symbol is the main currency, just return the qta
             if symbol.upper() == self.wallet["currency"]:
                 price = 1
@@ -303,7 +309,7 @@ class calculateWalletValue:
                 continue
 
             value = round(price*qta, 2)
-            self.wallet['fiat'][symbol][1] = value
+            self.wallet['asset'][symbol][1] = value
             tot += value
 
         self.wallet['total_value'] = round(tot, 2)
@@ -323,8 +329,8 @@ class calculateWalletValue:
         symbol_to_visualize = list()  # [ [symbol, value], ...]
         lib.printWarn('Preparing data...')
         if self.type == 'crypto':
-            temp = self.wallet['stable'] | self.wallet['crypto'] # merge into one dict
-            for (symbol, [_, value]) in temp.items():
+            temp = self.getAssetFromWallet(['stable', 'crypto'], getValue=True) # merge into one dict
+            for symbol, value in temp:
                 if symbol == 'other': continue
 
                 # group together all element whose value is <= than 2% 
@@ -342,8 +348,8 @@ class calculateWalletValue:
             symbol_to_visualize = [
                 ['Crypto', 0.0], ['Fiat', 0.0]
             ]
-            temp = self.wallet['stable'] | self.wallet['crypto'] | self.wallet['fiat'] # merge into one dict
-            for (symbol, [_, value]) in temp.items():
+            temp = self.getAssetFromWallet(['all'], getValue=True) # merge into one dict
+            for symbol, value in temp:
                 if symbol.lower() not in self.supportedFiat and symbol.lower() not in self.supportedStablecoin:
                     # crypto
                     symbol_to_visualize[0][1] += value
@@ -357,11 +363,11 @@ class calculateWalletValue:
 
     # create a pie chart, save it(unless self.load is checked) and show it
     def genPlt(self, symbol_to_visualize: list, ) -> None:
+        lib.printWarn('Creating pie chart...')
         mylabels = [] # symbols
         val = [] # value in currency of symbols
 
-        lib.printWarn('Creating pie chart...')
-        for (symb, value) in symbol_to_visualize:
+        for (symb, value) in sorted(symbol_to_visualize):
             mylabels.append(symb)
             val.append(value)
 
@@ -418,16 +424,16 @@ class calculateWalletValue:
     # [symbol, qta, value]
     def getWalletAsList(self) -> list:
         li = list()
-        temp = self.wallet['crypto'] | self.wallet['stable'] | self.wallet['fiat'] # merge dict
-        for (symbol, [qta, value]) in temp.items():
+        temp = self.getAssetFromWallet(['all'], getQta=True, getValue=True) # merge dict
+        for symbol, qta, value in temp:
             li.append([symbol, qta, value]) # convert dict to list
         return li
     
     def getStableCoinPercentage(self):
         tot_stable = 0
-        for (_ ,[ _, value] ) in self.wallet['stable'].items():
+        for _ , value in self.getAssetFromWallet(['stable'], getValue=True):
             tot_stable += value
-        
+
         if self.type == 'crypto':
             return round(tot_stable/self.wallet['total_crypto_stable'] * 100, 2)
         elif self.type == 'total':
