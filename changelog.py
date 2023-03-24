@@ -1,13 +1,13 @@
 #
 #                           TO DO
-# TODO [cryptoBalanceReport] genPlt rotate date to read better
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
-# TODO [calculateWalletValue] implement volatility
+# TODO [calculateWalletValue] implement volatility 
+#                             https://whynance.medium.com/use-python-to-estimate-your-portfolios-volatility-eee22d1a37db 
+#                             https://www.learnpythonwithrune.org/calculate-the-volatility-of-historic-stock-prices-with-pandas-and-python/
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
 # TODO [calculateWalletValue] uniform symbol str structure( all lower )
 # TODO [calculateWalletValue] fix handleDataPlt when one asset is a major % of self.wallet['total_crypto_stable']
-# TODO [calculateWalletValue] add function to get asset list from self.wallet
 # TODO [all] comment new code
 # TODO [lib] compare volatility with btc and eth volatility or other crypto index
 #            DONE [calculateWalletValue] add report.json support
@@ -84,3 +84,4 @@
 # DONE [calculateWalletValue] change internal structure of self.wallet
 #                             { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
 # DONE [calculateWalletValue] adapt to self.wallet changes
+# DONE [calculateWalletValue] add function to get asset list from self.wallet
