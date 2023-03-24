@@ -30,9 +30,8 @@ class calculateWalletValue:
         self.load = load # option to load data from json, see calculateWalletValue.genPltFromJson()
         self.privacy = privacy
         self.wallet = {
-            # stable, crypto and fiat are structured so
-            # {<symbol>: [<amount>, <value>], ...} 
-            # { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
+            # { asset: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
+            # { asset: [['ATOM', 2, 30, 'crypto'], ['USDC', 21.4, 21.4, 'fiat']]}
             'asset' : dict(),
             'total_invested': 0,
             'currency': self.settings['currency']
@@ -141,6 +140,8 @@ class calculateWalletValue:
         lib.printFail('Unexpected error, incorrect price provider')
         exit()
     
+    # get NCIS (crypto index) price
+    # will be used to compare volatility of portfolio vs volatility of NCIS
     def getCryptoIndex(self) -> float:
         return getTicker(
             ticker="^NCIS", 
@@ -379,7 +380,8 @@ class calculateWalletValue:
 
         # add legend and title to pie chart
         plt.legend(title = "Symbols:")
-        title_stablePercentage = f'Stablecoin Percentage: {self.getStableCoinPercentage()}%'
+        stable_percentage = self.getStableCoinPercentage()
+        title_stablePercentage = f'Stablecoin Percentage: {" " if stable_percentage < 0 else stable_percentage}%'
         if self.privacy:
             # do not show total value
             plt.title(f'{self.type.capitalize()} Balance: ***** {self.wallet["currency"]} | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
@@ -425,7 +427,8 @@ class calculateWalletValue:
             li.append([symbol, qta, value]) # convert dict to list
         return li
     
-    def getStableCoinPercentage(self):
+    # calculate stablecoin percentage of portfolio
+    def getStableCoinPercentage(self) -> float:
         tot_stable = 0
         for _ , value in self.getAssetFromWallet(['stable'], getValue=True):
             tot_stable += value
@@ -436,6 +439,7 @@ class calculateWalletValue:
             return round(tot_stable/self.wallet['total_value'] * 100, 2)
         else:
             lib.printFail('Unexpected error')
+            return -1.0
 
     def updateReportJson(self):
         temp = json.dumps({
@@ -543,7 +547,6 @@ class calculateWalletValue:
                 self.showInvalidSymbol()
 
             crypto = self.handleDataPlt()
-            self.getStableCoinPercentage()
             self.genPlt(crypto)
 
 # 
@@ -585,6 +588,7 @@ class walletBalanceReport:
         else:
             return False
 
+    # change the dates between which you view the report
     def chooseDateRange(self):
         while True:
             lib.printAskUserInput("Choose a date range, enter dates one by one")
@@ -803,6 +807,7 @@ class cryptoBalanceReport:
         #else: self.ticker = [self.cryptos[index-len(self.special_ticker)].lower()]
         self.ticker = self.cryptos[index]
 
+    # change the dates between which you view the report
     def chooseDateRange(self):
         while True:
             lib.printAskUserInput("Choose a date range, enter dates one by one")
