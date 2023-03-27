@@ -1,6 +1,6 @@
-from json import load, loads, decoder
+from json import load, loads, decoder, dumps
 from datetime import datetime, timedelta
-from os import environ
+from os import environ, path, getcwd
 
 class lib:
     # this color below works only on unixlike shell
@@ -188,3 +188,61 @@ class lib:
             if f.writable: f.write(new_file)
             else: return False, new_file # return new_file to eventually retry later
         return True, ''
+
+    @staticmethod
+    def createCacheFile(dirPath: str):
+        if path.isdir(dirPath):
+            cwd = getcwd() # current working directory
+            cg = cwd+'\\cached_id_CG.json'
+            cmc = cwd+'\\cached_id_CMC.json'
+
+            lib.createFile(cg)
+            lib.createFile(cmc)
+            
+            with open(cg, 'w') as f:
+                if f.writable():
+                    file = {
+                        "fixed": [],
+                        "used": []
+                    }
+                    f.write(dumps(file))
+                else: return False
+            
+            with open(cmc, 'w') as f:
+                if f.writable():
+                    f.write('{}')
+                else: return False
+        else:
+            pass
+
+    @staticmethod
+    def createWorkingFile(dirPath: str):
+        if path.isdir(dirPath):
+            # create the needed folder and json file
+            try:
+                if not path.isdir(dirPath+'\\grafico'):
+                    mkdir(dirPath+'\\grafico') 
+            except FileExistsError:
+                pass
+            except FileNotFoundError:
+                lib.printFail('Error on init, check path in settings.json')
+                exit()
+            
+            lib.createFile(dirPath+'\\walletValue.json')
+            lib.createFile(dirPath+'\\report.json')
+
+            graficoPath = dirPath+'\\grafico'
+            walletValuePath = dirPath+'\\walletValue.json'
+            reportPath = dirPath+'\\report.json'
+
+            return graficoPath, walletValuePath, reportPath
+        else:
+            lib.printFail('Specify a correct path in settings.json')
+            exit()
+    
+    @staticmethod
+    def createFile(filepath) -> bool:
+        if not path.exists(filepath+'\\walletValue.json'):
+            open(filepath+'\\walletValue.json', 'w')
+            return True
+        return False

@@ -76,30 +76,11 @@ class calculateWalletValue:
             lib.printFail('Unexpected error, pass the correct argument, run again with option --help')
             exit()
 
-        if os.path.isdir(basePath):
-            # create the needed folder and json file
-            try:
-                if not os.path.isdir(basePath+'\\grafico'):
-                    os.mkdir(basePath+'\\grafico') 
-            except FileExistsError:
-                pass
-            except FileNotFoundError:
-                lib.printFail('Error on init, check path in settings.json')
-                exit()
-            
-            if not os.path.exists(basePath+'\\walletValue.json'):
-                open(basePath+'\\walletValue.json', 'w')
-
-            if not os.path.exists(basePath+'\\report.json'):
-                open(basePath+'\\report.json', 'w')
-
-            # set paths variable
-            self.settings['grafico_path'] = basePath+'\\grafico'
-            self.settings['wallet_path'] = basePath+'\\walletValue.json'
-            self.settings['report_path'] = basePath+'\\report.json'
-        else:
-            lib.printFail('Specify a correct path in settings.json')
-            exit()
+        # create cache 
+        files = lib.createWorkingFile(basePath)
+        self.settings['grafico_path'] = files[0]
+        self.settings['wallet_path'] = files[1]
+        self.settings['report_path'] = files[2]
 
     # acquire csv data and convert it to a list
     # return a list
