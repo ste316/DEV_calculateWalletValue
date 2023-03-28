@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import argparse
 import json
-import os
 
 # 
 # Calculate your wallet value 
@@ -46,6 +45,14 @@ class calculateWalletValue:
             exit()
         else: basePath = self.settings['path']
 
+        # create cache 
+        files = lib.createWorkingFile(basePath)
+        if not files: exit()
+        self.settings['grafico_path'], self.settings['wallet_path'], self.settings['report_path'] = files
+
+        files = lib.createCacheFile()
+        if not files: exit()
+
         # set price provider
         if self.settings['provider'] == 'cg':
             lib.printWarn('Api Provider: CoinGecko')
@@ -75,12 +82,6 @@ class calculateWalletValue:
         else:
             lib.printFail('Unexpected error, pass the correct argument, run again with option --help')
             exit()
-
-        # create cache 
-        files = lib.createWorkingFile(basePath)
-        self.settings['grafico_path'] = files[0]
-        self.settings['wallet_path'] = files[1]
-        self.settings['report_path'] = files[2]
 
     # acquire csv data and convert it to a list
     # return a list

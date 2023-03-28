@@ -189,31 +189,37 @@ class lib:
             else: return False, new_file # return new_file to eventually retry later
         return True, ''
 
+    # create /cached_id_CG.json and /cached_id_CMC.json
+    # in current working directory (where you run main.py)
+    # return a list of full path of created files if succesfully
+    # False otherwise
     @staticmethod
-    def createCacheFile(dirPath: str) -> bool:
-        if path.isdir(dirPath):
-            cwd = getcwd() # current working directory
-            cg = cwd+'\\cached_id_CG.json'
-            cmc = cwd+'\\cached_id_CMC.json'
+    def createCacheFile():
+        cwd = getcwd() # current working directory
+        cg = cwd+'\\cached_id_CG.json'
+        cmc = cwd+'\\cached_id_CMC.json'
 
-            if not lib.createFile(cg): lib.printFail(f'Failed to create file: {cg}'); return False
-            if not lib.createFile(cmc): lib.printFail(f'Failed to create file: {cmc}'); return False
-            
-            try:
-                with open(cg, 'w') as f:
-                    if f.writable(): f.write(dumps({"fixed": [], "used": []}, indent=4))
-                    else: return False
-            except: lib.printFail(f'Failed to write file: {cg}'); return False
+        if not lib.createFile(cg): lib.printFail(f'Failed to create file: {cg}'); return False
+        if not lib.createFile(cmc): lib.printFail(f'Failed to create file: {cmc}'); return False
+        
+        try:
+            with open(cg, 'w') as f:
+                if f.writable(): f.write(dumps({"fixed": [], "used": []}, indent=4))
+                else: return False
+        except: lib.printFail(f'Failed to write file: {cg}'); return False
 
-            try:    
-                with open(cmc, 'w') as f:
-                    if f.writable(): f.write('{}')
-                    else: return False
-            except: lib.printFail(f'Failed to write file: {cmc}'); return False
+        try:    
+            with open(cmc, 'w') as f:
+                if f.writable(): f.write('{}')
+                else: return False
+        except: lib.printFail(f'Failed to write file: {cmc}'); return False
 
-            return True
-        else: lib.printFail(f'The following directory DON\'T exist: {dirPath}'); return False
+        return cg, cmc
 
+    # create /grafico , /walletValue.json and /report.json
+    # in dirPath passed as argument
+    # return a list of full path of created files/dir if succesfully
+    # False otherwise
     @staticmethod
     def createWorkingFile(dirPath: str):
         if path.isdir(dirPath):
@@ -230,7 +236,7 @@ class lib:
             if not lib.createFile(reportJsonPath): lib.printFail(f'Failed to create file: {reportJsonPath}'); return False
 
             return graficoPath, walletJsonPath, reportJsonPath
-        else: lib.printFail('Specify a correct path in settings.json'); return False
+        else: lib.printFail(f'The following directory DON\'T exist: {dirPath}'); return False
     
     # return True if file exist or is succesfully created
     # False otherwise
