@@ -1,6 +1,6 @@
 from json import load, loads, decoder, dumps
 from datetime import datetime, timedelta
-from os import environ, path, getcwd
+from os import environ, path, getcwd, mkdir
 
 class lib:
     # this color below works only on unixlike shell
@@ -190,59 +190,55 @@ class lib:
         return True, ''
 
     @staticmethod
-    def createCacheFile(dirPath: str):
+    def createCacheFile(dirPath: str) -> bool:
         if path.isdir(dirPath):
             cwd = getcwd() # current working directory
             cg = cwd+'\\cached_id_CG.json'
             cmc = cwd+'\\cached_id_CMC.json'
 
-            lib.createFile(cg)
-            lib.createFile(cmc)
+            if not lib.createFile(cg): lib.printFail(f'Failed to create file: {cg}'); return False
+            if not lib.createFile(cmc): lib.printFail(f'Failed to create file: {cmc}'); return False
             
-            with open(cg, 'w') as f:
-                if f.writable():
-                    file = {
-                        "fixed": [],
-                        "used": []
-                    }
-                    f.write(dumps(file))
-                else: return False
-            
-            with open(cmc, 'w') as f:
-                if f.writable():
-                    f.write('{}')
-                else: return False
-        else:
-            pass
+            try:
+                with open(cg, 'w') as f:
+                    if f.writable(): f.write(dumps({"fixed": [], "used": []}, indent=4))
+                    else: return False
+            except: lib.printFail(f'Failed to write file: {cg}'); return False
+
+            try:    
+                with open(cmc, 'w') as f:
+                    if f.writable(): f.write('{}')
+                    else: return False
+            except: lib.printFail(f'Failed to write file: {cmc}'); return False
+
+            return True
+        else: lib.printFail(f'The following directory DON\'T exist: {dirPath}'); return False
 
     @staticmethod
     def createWorkingFile(dirPath: str):
         if path.isdir(dirPath):
-            # create the needed folder and json file
-            try:
-                if not path.isdir(dirPath+'\\grafico'):
-                    mkdir(dirPath+'\\grafico') 
-            except FileExistsError:
-                pass
-            except FileNotFoundError:
-                lib.printFail('Error on init, check path in settings.json')
-                exit()
-            
-            lib.createFile(dirPath+'\\walletValue.json')
-            lib.createFile(dirPath+'\\report.json')
-
             graficoPath = dirPath+'\\grafico'
-            walletValuePath = dirPath+'\\walletValue.json'
-            reportPath = dirPath+'\\report.json'
+            walletJsonPath = dirPath+'\\walletValue.json'
+            reportJsonPath = dirPath+'\\report.json'
 
-            return graficoPath, walletValuePath, reportPath
-        else:
-            lib.printFail('Specify a correct path in settings.json')
-            exit()
+            try:
+                if not path.isdir(graficoPath): mkdir(graficoPath) 
+            except FileExistsError: pass
+            except FileNotFoundError: lib.printFail('Error on init, check path in settings.json'); return False
+            
+            if not lib.createFile(walletJsonPath): lib.printFail(f'Failed to create file: {walletJsonPath}'); return False
+            if not lib.createFile(reportJsonPath): lib.printFail(f'Failed to create file: {reportJsonPath}'); return False
+
+            return graficoPath, walletJsonPath, reportJsonPath
+        else: lib.printFail('Specify a correct path in settings.json'); return False
     
+    # return True if file exist or is succesfully created
+    # False otherwise
     @staticmethod
     def createFile(filepath) -> bool:
-        if not path.exists(filepath+'\\walletValue.json'):
-            open(filepath+'\\walletValue.json', 'w')
-            return True
-        return False
+        if not path.exists(filepath):
+            try:
+                open(filepath, 'w').close()
+            except:
+                return False
+        return True 

@@ -16,6 +16,9 @@
             CoinMarketCap is lightning faster but you have less privacy.
 
 2. Usage:
+    * Preliminary step:
+        * `cd <folderOfProject>`
+        
     There are 2 main group of command, to produce data and to analyse data
 
     * To produce data:
