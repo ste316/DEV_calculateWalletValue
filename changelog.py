@@ -1,6 +1,10 @@
 #
 #                           TO DO
+# TODO [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
+# TODO [calculateWalletValue] store multiple record on walletValue.json for the same day
+#                             TODO [calculateWalletValue] --load display the last record per day
+# TODO [walletBalanceReport] add increment percentage of a certain period
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
 # TODO [calculateWalletValue] implement volatility 
 #                             https://whynance.medium.com/use-python-to-estimate-your-portfolios-volatility-eee22d1a37db 
