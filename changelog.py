@@ -2,6 +2,7 @@
 #                           TO DO
 # TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
 # TODO [new] airdrop tracker Track staked tokens
+# TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
 # TODO [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [calculateWalletValue] store multiple record on walletValue.json for the same day
