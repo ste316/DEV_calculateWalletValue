@@ -1,5 +1,6 @@
 #
 #                           TO DO
+# TODO [api] fix AttributeError: 'list' object has no attribute 'keys', line 49 convertSymbol2ID (coingecko)
 # TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
 # TODO [new] airdrop tracker Track staked tokens
 # TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/

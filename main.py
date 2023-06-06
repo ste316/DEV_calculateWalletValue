@@ -313,7 +313,7 @@ class calculateWalletValue:
                 if symbol == 'other': continue
 
                 # group together all element whose value is <= than 2% 
-                if value / self.wallet['total_crypto_stable'] <= 0.02:
+                if value / self.wallet['total_crypto_stable'] <= self.settings['minimumPieSlice']:
                     if symbol_to_visualize[0][0] != 'other':
                         # add 'other' as first element
                         symbol_to_visualize = [['other', 0.0], *symbol_to_visualize]
