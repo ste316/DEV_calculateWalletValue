@@ -14,10 +14,10 @@ class lib:
 
     @staticmethod
     def logConsole(text: str, color: str, end: str):
-        if 'SHELL' not in environ.keys():
-            print(text, end=end)
-        else:
+        if 'TERM_PROGRAM' in environ.keys():
             print(f'{color}{text} {lib.ENDC}', end=end)
+        else:
+            print(text, end=end)
 
     @staticmethod
     def printOk(text: str, end = "\n"):

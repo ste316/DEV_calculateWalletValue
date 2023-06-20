@@ -11,7 +11,7 @@
 #                             TODO [calculateWalletValue] --load display the last record per day
 # TODO [walletBalanceReport] add increment percentage of a certain period
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
-# TODO [calculateWalletValue] implement volatility 
+# TODO [calculateWalletValue] implement volatility (Realized Volatility)
 #                             https://whynance.medium.com/use-python-to-estimate-your-portfolios-volatility-eee22d1a37db 
 #                             https://www.learnpythonwithrune.org/calculate-the-volatility-of-historic-stock-prices-with-pandas-and-python/
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
