@@ -1,12 +1,17 @@
 #
 #                           TO DO
+# TODO [api] fix AttributeError: 'list' object has no attribute 'keys', line 49 convertSymbol2ID (coingecko)
+# TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
+# TODO [new] airdrop tracker Track staked tokens
+# TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
+# TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
 # TODO [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [calculateWalletValue] store multiple record on walletValue.json for the same day
 #                             TODO [calculateWalletValue] --load display the last record per day
 # TODO [walletBalanceReport] add increment percentage of a certain period
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
-# TODO [calculateWalletValue] implement volatility 
+# TODO [calculateWalletValue] implement volatility (Realized Volatility)
 #                             https://whynance.medium.com/use-python-to-estimate-your-portfolios-volatility-eee22d1a37db 
 #                             https://www.learnpythonwithrune.org/calculate-the-volatility-of-historic-stock-prices-with-pandas-and-python/
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
