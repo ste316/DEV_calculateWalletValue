@@ -132,7 +132,11 @@ class cg_api_n():
         # format data correctly
         for item in res:
             index = [i for i in id if id[i] == item][0]
-            priceToReturn[index] = res[item][self.currency]
+            if res[item] == {}:
+                # data price not available, most likely coin is 'Preview Only'
+                priceToReturn[index] = 0
+            else: # all good
+                priceToReturn[index] = res[item][self.currency]
 
         missingCryptoFromPrice = checkSet-set(priceToReturn.keys())
         if len(missingCryptoFromConvert) > 0:
