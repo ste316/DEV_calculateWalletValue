@@ -1,5 +1,7 @@
 #
 #                           TO DO
+# TODO [new] add notification on discord/other messaging platform
+# TODO [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
 # TODO [api] fix AttributeError: 'list' object has no attribute 'keys', line 49 convertSymbol2ID (coingecko)
 # TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
 # TODO [new] airdrop tracker Track staked tokens
