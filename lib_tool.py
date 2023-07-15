@@ -1,6 +1,7 @@
 from json import load, loads, decoder, dumps
 from datetime import datetime, timedelta
 from os import environ, path, getcwd, mkdir
+from platform import system
 
 class lib:
     # this color below works only on unixlike shell
@@ -68,7 +69,7 @@ class lib:
             if(f.readable):
                 return load(f) # json.load settings in a dict
             else: 
-                lib.printFail('Error on reading settings')
+                lib.printFail(f'Error while reading {file}')
                 exit()
 
     @staticmethod
@@ -196,24 +197,13 @@ class lib:
     @staticmethod
     def createCacheFile():
         cwd = getcwd() # current working directory
-        cg = cwd+'\\cached_id_CG.json'
-        cmc = cwd+'\\cached_id_CMC.json'
+        joiner = '\\' if system() == 'Windows' else '/'
+        cg = cwd+joiner+'cached_id_CG.json'
+        cmc = cwd+joiner+'cached_id_CMC.json'
 
-        if not lib.createFile(cg): lib.printFail(f'Failed to create file: {cg}'); return False
-        if not lib.createFile(cmc): lib.printFail(f'Failed to create file: {cmc}'); return False
+        lib.createFile(cg, dumps({"fixed": {}, "used": {}}, indent=4), False)
+        lib.createFile(cmc, '{}', False)
         
-        try:
-            with open(cg, 'w') as f:
-                if f.writable(): f.write(dumps({"fixed": [], "used": []}, indent=4))
-                else: return False
-        except: lib.printFail(f'Failed to write file: {cg}'); return False
-
-        try:    
-            with open(cmc, 'w') as f:
-                if f.writable(): f.write('{}')
-                else: return False
-        except: lib.printFail(f'Failed to write file: {cmc}'); return False
-
         return cg, cmc
 
     # create /grafico , /walletValue.json and /report.json
@@ -222,29 +212,46 @@ class lib:
     # False otherwise
     @staticmethod
     def createWorkingFile(dirPath: str):
-        if path.isdir(dirPath):
-            graficoPath = dirPath+'\\grafico'
-            walletJsonPath = dirPath+'\\walletValue.json'
-            reportJsonPath = dirPath+'\\report.json'
+        try:
+            if not path.isdir(dirPath): mkdir(dirPath) 
+        except FileExistsError: pass
+        except FileNotFoundError: lib.printFail('Error on init, check path in settings.json'); return False
+        
+        joiner = '\\' if system() == 'Windows' else '/'
+        dirPath = dirPath+joiner
+        graficoPath = dirPath+'grafico'
+        walletJsonPath = dirPath+'walletValue.json'
+        reportJsonPath = dirPath+'report.json'
 
-            try:
-                if not path.isdir(graficoPath): mkdir(graficoPath) 
-            except FileExistsError: pass
-            except FileNotFoundError: lib.printFail('Error on init, check path in settings.json'); return False
-            
-            if not lib.createFile(walletJsonPath): lib.printFail(f'Failed to create file: {walletJsonPath}'); return False
-            if not lib.createFile(reportJsonPath): lib.printFail(f'Failed to create file: {reportJsonPath}'); return False
+        try:
+            if not path.isdir(graficoPath): mkdir(graficoPath) 
+        except FileExistsError: pass
+        except FileNotFoundError: lib.printFail('Error on init, check path in settings.json'); return False
+        
+        lib.createFile(walletJsonPath)
+        lib.createFile(reportJsonPath)
 
-            return graficoPath, walletJsonPath, reportJsonPath
-        else: lib.printFail(f'The following directory DON\'T exist: {dirPath}'); return False
-    
-    # return True if file exist or is succesfully created
-    # False otherwise
+        return graficoPath, walletJsonPath, reportJsonPath
+
+    # If filepath do not exist on filesystem, create file and write content
+    # If filepath exist on filesystem, 
+    #   write content on filepath created if filepath doesn't contain anything or overide == True  
+    #       
     @staticmethod
-    def createFile(filepath) -> bool:
-        if not path.exists(filepath):
-            try:
-                open(filepath, 'w').close()
-            except:
-                return False
-        return True 
+    def createFile(filepath: str, content: str = '', overide: bool = False):
+        try:
+            if not path.exists(filepath):
+                with open(filepath, 'w') as f:
+                    f.write(content)
+                return
+            else:
+                f = open(filepath, 'r')
+                if len(f.read()) == 0 or overide:
+                    f.close()
+                    f = open(filepath, 'w')
+                    f.write(content)
+                return
+        except Exception as e:
+            lib.printFail(f'Failed to create file: {filepath}')
+            lib.printFail(str(e))
+            exit()

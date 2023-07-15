@@ -3,6 +3,7 @@ from lib_tool import lib
 from pandas import read_csv
 from datetime import datetime
 from numpy import array
+from math import isnan
 import matplotlib.pyplot as plt
 import seaborn as sns
 import argparse
@@ -45,23 +46,25 @@ class calculateWalletValue:
             exit()
         else: basePath = self.settings['path']
 
-        # create cache 
+        # create working files
         files = lib.createWorkingFile(basePath)
         if not files: exit()
         self.settings['grafico_path'], self.settings['wallet_path'], self.settings['report_path'] = files
 
-        files = lib.createCacheFile()
-        if not files: exit()
+        # create input.csv file
+        lib.createFile('input.csv', 'symbol,qta,label', False)
 
         # set price provider
         if self.settings['provider'] == 'cg':
             lib.printWarn('Api Provider: CoinGecko')
             self.provider = 'cg'
             self.cg = cg_api_n(self.wallet["currency"])
+            lib.createFile('all_id_CG.json')
         elif self.settings['provider'] == 'cmc':
             lib.printWarn('Api Provider: CoinMarketCap')
             self.provider = 'cmc'
             self.cmc = cmc_api(self.wallet["currency"], self.settings['CMC_key'])
+            lib.createFile('all_id_CMC.json')
         else:
             lib.printFail("Specify a correct price provider")
             exit()
@@ -73,7 +76,6 @@ class calculateWalletValue:
                 self.cg.fetchID()
             if self.provider == 'cmc':
                 self.cmc.fetchID()
-            lib.printOk('Coin list successfully fetched and saved')
 
         # set type
         if type in ['crypto', 'total']: 
@@ -142,12 +144,17 @@ class calculateWalletValue:
     # check data and sort assets in crypto, stable and fiat
     def checkInput(self, crypto: list) -> dict:
         lib.printWarn('Validating data...')
-        
+        if len(crypto) == 0:
+            lib.printFail(f'Input.csv is empty, fill it with your crypto...')
+            exit()
         # value refer to 'label' column in input.csv and it's NOT used
         # when self.load is true INSTEAD value refer to fiat value in the 
         # list 'crypto' walletValue.json inside and it is used
         for (symbol, qta, value) in crypto:
             try:
+                print(type(symbol) == 'float') # isnan(float(symbol)) or 
+                if type(symbol) == 'float' or (type(symbol) == 'str' and symbol.replace(" ", "") == ""): raise ValueError
+                if isnan(float(qta)): raise ValueError
                 qta = float(qta) # convert str to float
             except ValueError:
                 lib.printFail(f'Error parsing value of {symbol}')
@@ -193,6 +200,10 @@ class calculateWalletValue:
                     if self.load:
                         self.wallet['asset'][str(symbol).upper()] = [qta, value, 'crypto']
                     else: self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'crypto']
+        
+        if self.wallet['asset'] == {}:
+            lib.printFail('input.csv is empty or have some columns missing')
+            exit()
 
     # get assets from self.wallet, specify typeOfAsset('crypto' or 'stable' or 'fiat' or 'all')
     # default return: list of symbol filtered by type

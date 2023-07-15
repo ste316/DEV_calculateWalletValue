@@ -1,36 +1,33 @@
 #
 #                           TO DO
-# TODO [all] raise Exception('msg') instead of exit()
-# TODO [new] add buy price, send alert to buy when condition meets
+# TODO [calculateWalletValue] implement volatility (Realized Volatility)
+#                             https://whynance.medium.com/use-python-to-estimate-your-portfolios-volatility-eee22d1a37db 
+#                             https://www.learnpythonwithrune.org/calculate-the-volatility-of-historic-stock-prices-with-pandas-and-python/
 # TODO [calculateWalletValue] store multiple record on walletValue.json for the same day
-#                             ? change walletValue format to csv ? or change to sql db ?
-#                             TODO [calculateWalletValue] --load display the last record per day
+#                            ? change walletValue format to csv ? or change to sql db ?
+#                            TODO [calculateWalletValue] --load display the last record per day
+# TODO [lib] compare portfolio volatility with btc and eth volatility or other crypto index
+#            DONE [calculateWalletValue] add report.json support
 # TODO [new] add notification on discord/other messaging platform
+#            TODO [new] add buy price, send alert to buy when condition meets
 # TODO [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
 # TODO [api] fix AttributeError: 'list' object has no attribute 'keys', line 49 convertSymbol2ID (coingecko)
 # TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
-# TODO [new] airdrop tracker Track staked tokens
-# TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
+# TODO [new] airdrop tracker, Track staked tokens
 # TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
 # TODO [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport] add increment percentage of a certain period
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
-# TODO [calculateWalletValue] implement volatility (Realized Volatility)
-#                             https://whynance.medium.com/use-python-to-estimate-your-portfolios-volatility-eee22d1a37db 
-#                             https://www.learnpythonwithrune.org/calculate-the-volatility-of-historic-stock-prices-with-pandas-and-python/
 # TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
 # TODO [calculateWalletValue] uniform symbol str structure( all lower )
 # TODO [calculateWalletValue] fix handleDataPlt when one asset is a major % of self.wallet['total_crypto_stable']
 # TODO [all] comment new code
-# TODO [lib] compare volatility with btc and eth volatility or other crypto index
-#            DONE [calculateWalletValue] add report.json support
 # TODO [new] watch defillama api https://defillama.com/docs/api
 # TODO [new] get defi vault data https://nanoly.com/api
 # TODO [calculateWalletValue] add support for CG api key
-# TODO [main] see cmc fiat conversion
-#             https://coinmarketcap.com/api/documentation/v1/#operation/getV2ToolsPriceconversion
-#
+
+
 #                           CHANGELOG
 #  DONE [calculateWalletValue] PLT rename asset with weight < %5 to OTHER 
 #  DONE [calculateWalletValue] implement https://www.coingecko.com/api/pricing https://github.com/man-c/pycoingecko to retrieve price
@@ -99,3 +96,4 @@
 #                             { crypto: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
 # DONE [calculateWalletValue] adapt to self.wallet changes
 # DONE [calculateWalletValue] add function to get asset list from self.wallet
+# DONE [all] add input checks and file setup for first run

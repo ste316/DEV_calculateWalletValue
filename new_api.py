@@ -20,11 +20,26 @@ class cg_api_n():
             To find the right one just ctrl/cmd + F on cached_id_CG.json file
             and search the right one by looking at name field'''
 
+        # create cache file
+        files = lib.createCacheFile()
+        if not files: exit()
+
         self.cacheFile = 'cached_id_CG.json'
         self.all_id_path = 'all_id_CG.json'
         cg_cache = lib.loadJsonFile(self.cacheFile)
         self.fixedSymbol = cg_cache['fixed']
         self.usedSymbol = cg_cache['used']
+        
+        try:
+            with open(self.all_id_path, 'r') as f:
+                if len(f.read()) == 0:
+                    f.close()
+                    self.fetchID()
+        except FileNotFoundError: 
+            self.fetchID()
+        except Exception as e:
+            lib.printFail(str(e))
+            exit()
 
     # fetch all id, symbol and name from CoinGecko, run only once in a while to update it
     def fetchID(self) -> None: 
@@ -33,6 +48,7 @@ class cg_api_n():
 
         with open('all_id_CG.json', 'w') as f:
             f.write(json.dumps(coin, indent=4))
+        lib.printOk('Coin list successfully fetched and saved')
 
     # convert 'find' to CoinGecko id
     # @param find crypto ticker eg. "ETH" "eth"
@@ -185,13 +201,19 @@ from random import randrange
 #
 class cmc_api:
     def __init__(self, currency: str, api_key: str) -> None:
+        if len(api_key) == 0:
+            lib.printFail('CMC API error, no api key provided')
+            exit()        
         self.currency = currency
         self.key = api_key
         self.baseurl = f'https://pro-api.coinmarketcap.com/v1/'
         self.cacheFile = 'cached_id_CMC.json'
-        self.all_id_file = 'all_id_CMC.json'
-        self.cachedSymbol = lib.loadJsonFile(self.cacheFile)
-
+        self.all_id_path = 'all_id_CMC.json'
+        # create cache file
+        files = lib.createCacheFile()
+        if not files: exit()
+        self.cachedSymbol = lib.loadJsonFile(self.cacheFile)    
+        
         headers = { 
             'Accepts': 'application/json',
             'Accept-Encoding': 'deflate, gzip',
@@ -200,6 +222,24 @@ class cmc_api:
 
         self.session = Session()
         self.session.headers.update(headers)
+
+        if not self.isKeyValid():
+            lib.printFail('CMC API error, api key provided is not valid')
+            exit()
+
+        try:
+            with open(self.all_id_path, 'r') as f:
+                try: 
+                    json.loads(f.read())['data']
+                except KeyError: 
+                    f.close()
+                    self.fetchID()
+
+        except FileNotFoundError: 
+            self.fetchID()
+        except Exception as e:
+            lib.printFail(str(e))
+            exit()
 
     # check that self.key is valid by making a request to CMC endpoint
     # @return True is CMC key is valid, False if not or other error is encoutered
@@ -226,7 +266,8 @@ class cmc_api:
     def fetchID(self) -> int:
         url = 'cryptocurrency/map'
         res = self.session.get(self.baseurl+url)
-        open(self.all_id_file, 'w').write(json.dumps(res.json(), indent=4))
+        open(self.all_id_path, 'w').write(json.dumps(res.json(), indent=4))
+        lib.printOk('Coin list successfully fetched and saved')
 
     # convert 'symbols' in CMC ids
     # @param symbols list of crypto tickers ["BTC", "ETH"]
