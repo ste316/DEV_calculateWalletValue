@@ -98,7 +98,7 @@ class cg_api_n():
                 lib.printFail(f'CoinGecko error, multiple ids has been found {lib.WARNING_YELLOW}({ids}){lib.ENDC} for symbol {lib.WARNING_YELLOW}"{symbol}"{lib.ENDC}')
 
         if err_count > 0:
-            lib.printFail(f'Add the correct one in {lib.WARNING_YELLOW}{self.all_id_path}{lib.ENDC} in fixed field')
+            lib.printFail(f'Add the correct one in {lib.WARNING_YELLOW}{self.cacheFile}{lib.ENDC} in fixed field')
             res['error'] = True
         
         # update self.usedSymbol and dump it to cached_id_CG.json['used']
@@ -157,7 +157,7 @@ class cg_api_n():
         missingCryptoFromPrice = checkSet-set(priceToReturn.keys())
         if len(missingCryptoFromConvert) > 0:
                 lib.printFail(f'The following crypto(s) are NOT available in CoinGecko or do NOT exist: {lib.WARNING_YELLOW}{list(missingCryptoFromConvert)}{lib.ENDC}')
-                lib.printWarn(f'Make sure to fetch all new CoinGecko ids by set {lib.WARNING_YELLOW}fetchSymb{lib.ENDC} equals to true in your {lib.WARNING_YELLOW}settings.json{lib.ENDC} file')
+                lib.printWarn(f'Make sure to fetch all new CoinGecko ids by setting {lib.WARNING_YELLOW}fetchSymb{lib.ENDC} param equals to true in your {lib.WARNING_YELLOW}settings.json{lib.ENDC} file')
         if len(missingCryptoFromPrice) > 0:
                 lib.printFail(f'The following crypto(s) price(s) are NOT retrivable from CoinGecko: {lib.WARNING_YELLOW}{list(missingCryptoFromPrice)}{lib.ENDC}')
 

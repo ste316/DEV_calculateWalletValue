@@ -147,18 +147,20 @@ class calculateWalletValue:
         if len(crypto) == 0:
             lib.printFail(f'Input.csv is empty, fill it with your crypto...')
             exit()
+        
+        err = 0
         # value refer to 'label' column in input.csv and it's NOT used
         # when self.load is true INSTEAD value refer to fiat value in the 
         # list 'crypto' walletValue.json inside and it is used
         for (symbol, qta, value) in crypto:
             try:
-                print(type(symbol) == 'float') # isnan(float(symbol)) or 
-                if type(symbol) == 'float' or (type(symbol) == 'str' and symbol.replace(" ", "") == ""): raise ValueError
+                if type(symbol) == float or (type(symbol) == 'str' and symbol.replace(" ", "") == ""): raise ValueError
                 if isnan(float(qta)): raise ValueError
                 qta = float(qta) # convert str to float
             except ValueError:
                 lib.printFail(f'Error parsing value of {symbol}')
-                self.invalid_sym.append(str(symbol))
+                if not str(symbol) == 'nan': self.invalid_sym.append(str(symbol))
+                err +=1
                 continue
 
             # add total_invested from csv to self.wallet['total_invested']
@@ -202,8 +204,10 @@ class calculateWalletValue:
                     else: self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'crypto']
         
         if self.wallet['asset'] == {}:
-            lib.printFail('input.csv is empty or have some columns missing')
+            lib.printFail('File input.csv is empty or have some columns missing')
             exit()
+        if err > 0:
+            lib.printFail("Check your input.csv file, some value is missing")
 
     # get assets from self.wallet, specify typeOfAsset('crypto' or 'stable' or 'fiat' or 'all')
     # default return: list of symbol filtered by type
@@ -323,7 +327,7 @@ class calculateWalletValue:
             for symbol, value in temp:
                 if symbol == 'other': continue
 
-                # group together all element whose value is <= than 2% 
+                # group together all element whose value is <= than minimumPieSlice param, specified in settings.json
                 if value / self.wallet['total_crypto_stable'] <= self.settings['minimumPieSlice']:
                     if symbol_to_visualize[0][0] != 'other':
                         # add 'other' as first element

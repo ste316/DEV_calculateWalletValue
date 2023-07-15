@@ -201,7 +201,7 @@ class lib:
         cg = cwd+joiner+'cached_id_CG.json'
         cmc = cwd+joiner+'cached_id_CMC.json'
 
-        lib.createFile(cg, dumps({"fixed": {}, "used": {}}, indent=4), False)
+        lib.createFile(cg, dumps({"fixed": [], "used": {}}, indent=4), False)
         lib.createFile(cmc, '{}', False)
         
         return cg, cmc
