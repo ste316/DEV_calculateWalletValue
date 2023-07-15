@@ -1,0 +1,9 @@
+{
+    "currency": "EUR",
+    "provider": "cg",
+    "fetchSymb": false,
+    "CMC_key": "",
+    "path" : "",
+    "save_img": false,
+    "minimumPieSlice": 0.02
+}
