@@ -1,5 +1,10 @@
 #
 #                           TO DO
+# TODO [all] raise Exception('msg') instead of exit()
+# TODO [new] add buy price, send alert to buy when condition meets
+# TODO [calculateWalletValue] store multiple record on walletValue.json for the same day
+#                             ? change walletValue format to csv ? or change to sql db ?
+#                             TODO [calculateWalletValue] --load display the last record per day
 # TODO [new] add notification on discord/other messaging platform
 # TODO [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
 # TODO [api] fix AttributeError: 'list' object has no attribute 'keys', line 49 convertSymbol2ID (coingecko)
@@ -9,8 +14,6 @@
 # TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
 # TODO [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
 # TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
-# TODO [calculateWalletValue] store multiple record on walletValue.json for the same day
-#                             TODO [calculateWalletValue] --load display the last record per day
 # TODO [walletBalanceReport] add increment percentage of a certain period
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
 # TODO [calculateWalletValue] implement volatility (Realized Volatility)
