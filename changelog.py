@@ -4,8 +4,9 @@
 #                             https://whynance.medium.com/use-python-to-estimate-your-portfolios-volatility-eee22d1a37db 
 #                             https://www.learnpythonwithrune.org/calculate-the-volatility-of-historic-stock-prices-with-pandas-and-python/
 # TODO [calculateWalletValue] store multiple record on walletValue.json for the same day
-#                            ? change walletValue format to csv ? or change to sql db ?
+#                            ? change walletValue format to csv ? 
 #                            TODO [calculateWalletValue] --load display the last record per day
+# TODO [all] change all custom datastruct to DataFrame ?
 # TODO [lib] compare portfolio volatility with btc and eth volatility or other crypto index
 #            DONE [calculateWalletValue] add report.json support
 # TODO [new] add notification on discord/other messaging platform

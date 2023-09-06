@@ -2,6 +2,9 @@ from json import load, loads, decoder, dumps
 from datetime import datetime, timedelta
 from os import environ, path, getcwd, mkdir
 from platform import system
+from pandas import DataFrame
+from numpy import log
+from numpy import sqrt
 
 class lib:
     # this color below works only on unixlike shell
@@ -77,6 +80,10 @@ class lib:
         return lib.parse_formatDate(day, format) + timedelta(days=1)
     
     @staticmethod
+    def getNextHour(day: str, format = '%d/%m/%Y') -> datetime: 
+        return lib.parse_formatDate(day, format) + timedelta(hours=1)
+    
+    @staticmethod
     def getPreviousDay(day: str, format = '%d/%m/%Y') -> datetime: 
         return lib.parse_formatDate(day, format) - timedelta(days=1)
     
@@ -85,26 +92,39 @@ class lib:
         return datetime.today().date().strftime(format)
     
     @staticmethod
-    def parse_formatDate(day: str, format = '%d/%m/%Y') -> datetime:
+    def parse_formatDate(day: str, format = '%d/%m/%Y', splitBy = ' ') -> datetime:
         if type(day) == datetime:
             return day
-        return datetime.strptime(day.split(' ')[0], format)
+        return datetime.strptime(day.split(splitBy)[0], format)
 
     @staticmethod
-    # given a list of float
-    def calcAssetVolatility(total_value: list):
-        volatility = 0
-        n = 0
-        for i in range(len(total_value)-1):
-            if total_value[i+1] == total_value[i]:
-                continue
+    # given a list of float return avarage volatility
+    # be carefull of which number you pass as avg_period
+    # avg_period = 1 doesn't have no meaning
+    # avg_period > len(total_value) doesn't have no meaning either 
+    def calcAvgVolatility(total_value: list, avg_period: int = 30):
+        if avg_period == 1 or avg_period > len(total_value): 
+            lib.printFail(f"Specify a correct avg_period when calling {lib.calcAvgVolatility.__name__}")
+            return None
 
-            dayVolatilityPercentage = abs((total_value[i+1]-total_value[i])/ total_value[i])
-            volatility += dayVolatilityPercentage
-            n +=1
+        dataset = DataFrame(total_value) # pandas DF
+        dataset = log(dataset/dataset.shift(1)) # numpy.log()
+        dataset.fillna(0, inplace = True)
+
+        # window/avg_period tells us how many days out you want
+        # ddof in variance formula is x parameter .../(N - x)
+        # ddof = 0 means you CALCULATE variance, any other number means you are ESTIMATE it.
+        # you want to estimate it when you don't have all the necessary data to calc it.
+        #
+        # 365 in np.sqrt(365) is the number of trading day in a year, 
+        # specifically in crypto market, trading days = year-round
+        volatility = dataset.rolling(window=avg_period).std(ddof=0)*sqrt(365) # numpy.sqrt()
+
+        # avarage volatily
+        avg_volatility = volatility.mean(axis=0).get(0)
+        print(f'volatility: {avg_volatility * 100} %')
         
-        # calc avarage volatility and * 100 to get percentage format
-        return round((volatility / n)*100, 4) 
+        return avg_volatility
 
     @staticmethod
     def isValidDate(date: str, format = '%d/%m/%Y'):
@@ -153,12 +173,13 @@ class lib:
     # read json file, update
     def updateJson(file_path: str, date_to_update: str, new_record: str) -> tuple[bool, str]:
         new_file = ''
-        formated_date_to_update = datetime.strptime(date_to_update,  '%d/%m/%Y')
+        date_to_update = date_to_update.split(':')[0]
+        formated_date_to_update = datetime.strptime(date_to_update,  '%d/%m/%Y %H')
         date_file_line = datetime(1970, 1, 1)
         isFirst = True
 
         with open(file_path, 'r') as f:
-            for (i, line) in enumerate(f):
+            for (_, line) in enumerate(f):
                 try:
                     date = loads(line)
                 except decoder.JSONDecodeError as e: # sometimes it throw error on line 2
@@ -166,7 +187,7 @@ class lib:
                     pass
 
                 # parse date and convert to dd/mm/yyyy
-                date_file_line = datetime.strptime(date['date'].split(' ')[0], '%d/%m/%Y')
+                date_file_line = datetime.strptime(date['date'].split(':')[0], '%d/%m/%Y %H')
                 if isFirst: 
                     if formated_date_to_update < date_file_line: 
                         # if date_to_update is before the first line's date
@@ -176,7 +197,7 @@ class lib:
                         break
 
                 if date_file_line == formated_date_to_update:
-                    new_file += new_record+'\n' # insert new_record instead of old record(line)
+                    new_file += new_record+'\n' # insert new_record instead of old record(line variable)
                 else:
                     new_file += line # add line without modifing it
 
@@ -255,3 +276,8 @@ class lib:
             lib.printFail(f'Failed to create file: {filepath}')
             lib.printFail(str(e))
             exit()
+
+
+if __name__ == '__main__':
+    print(lib.calcAvgVolatility([1383,1371,1373,1341]), 2)
+    #TODO implement volatility in main.py classes

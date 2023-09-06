@@ -410,7 +410,10 @@ class calculateWalletValue:
                 plt.savefig(f'{self.settings["grafico_path"]}\\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}') #save image
                 lib.printOk(f'Pie chart image successfully saved in {self.settings["grafico_path"]}\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}')
             self.updateWalletValueJson()
-            self.updateReportJson()
+            
+            # It's useless until, volatility is implemented
+            # search 'def getCryptoIndex'
+            #self.updateReportJson()
 
         plt.show()
 
@@ -444,7 +447,7 @@ class calculateWalletValue:
             'currency': self.wallet['currency'],
             'NCIS': round(self.getCryptoIndex(), 2), # Nasdaq Crypto Index Settlement
         })
-        res = lib.updateJson(self.settings['report_path'], self.wallet['date'].split(' ')[0], temp)
+        res = lib.updateJson(self.settings['report_path'], self.wallet['date'], temp)
         if res[0]:
             lib.printOk(f'Data successfully saved in {self.settings["report_path"]}')            
         else:
@@ -463,7 +466,7 @@ class calculateWalletValue:
             'crypto': [['COIN, QTA, VALUE IN CURRENCY']]+self.getWalletAsList(), # all symbols
             }
         )
-        res = lib.updateJson(self.settings['wallet_path'], self.wallet['date'].split(' ')[0], temp)
+        res = lib.updateJson(self.settings['wallet_path'], self.wallet['date'], temp)
         if res[0]:
             lib.printOk(f'Data successfully saved in {self.settings["wallet_path"]}')            
         else:
@@ -610,7 +613,8 @@ class walletBalanceReport:
     # 
     # load all DATETIME from json file
     # to have a complete graph, when the next date is not the following date
-    # add the following date and the value of the last updated
+    # add the following date and the value of the last update
+    # similar to cryptoBalanceReport.retrieveDataFromJson
     #
     def loadDatetime(self) -> None:
         lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
@@ -627,7 +631,7 @@ class walletBalanceReport:
                 if 'total_value' not in line.keys() and self.type == 'total':
                     continue
 
-                temp_date = lib.parse_formatDate(line['date']) # parse date format: dd/mm/yyyy
+                temp_date = lib.parse_formatDate(line['date'], format='%d/%m/%Y %H', splitBy=':') # parse date format: dd/mm/yyyy hh
                 if self.type == 'total':
                     total_value = line['total_value']
                 elif self.type == 'crypto':
@@ -650,22 +654,23 @@ class walletBalanceReport:
                     firstI = False
                     continue
                 
-                # calculate the last date in list + 1 day
-                lastDatePlus1d = lib.getNextDay(self.data['date'][-1])
-                # check if temp_date (new date to add) is equal to lastDatePlus1d
-                if temp_date == lastDatePlus1d:
+                # calculate the last date in list + 1 hour
+                lastDatePlus1h = lib.getNextHour(self.data['date'][-1])
+                # check if temp_date (new date to add) is equal to lastDatePlus1h
+                if temp_date == lastDatePlus1h:
                     self.data['total_value'].append(total_value)
-                else:
+                else: # maybe there will be a bug if temp_date < lastDatePlus1h ???
                     self.data['total_value'].append(self.data['total_value'][-1])
                     f.insert(int(i)+1, line)
                     # add line again because we added the same amount of the last in list
                     # otherwise it didn't work properly
 
-                self.data['date'].append(lastDatePlus1d)
+                self.data['date'].append(lastDatePlus1h)
 
-    def calcTotalVolatility(self):
-        # abs((sommatoria peso_crypto*volatilità_crypto ) / n )
-
+    def __calcTotalVolatility(self):
+        if True:
+            lib.printFail(f'{self.__name__} Unimplemented function')
+            exit()
         # define which assets to calc volatility on
         assets = dict()
         with open(self.settings['wallet_path'], 'r') as f:
@@ -829,6 +834,7 @@ class cryptoBalanceReport:
 
     # collect amount, fiat value and date
     # fill amounts of all empty day with the last available
+    # similar to walletBalanceReport.loadDatetime
     def retrieveDataFromJson(self) -> None:
         lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
         with open(self.settings['wallet_path'], 'r') as file:
@@ -836,10 +842,12 @@ class cryptoBalanceReport:
             file = list(file) # each element of file is a line
             for index, line in enumerate(file):
                 temp = json.loads(line)
-                temp['date'] = lib.parse_formatDate(temp['date'])
+                # parse the whole date + hours
+                temp['date'] = lib.parse_formatDate(temp['date'], format='%d/%m/%Y %H', splitBy=':')
                 crypto_list = temp['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
                 isfound = False
                 for item in crypto_list:
+                    # item[0] is the name of the coin
                     if item[0] == self.ticker: # filter using user's input ticker
                         isfound = True
                         if firstI: # first iteration of external loop
@@ -849,19 +857,19 @@ class cryptoBalanceReport:
                             firstI = False
                             continue
                         
-                        # calculate the last date in self.data['date'] + 1 day
-                        lastDatePlus1d = lib.getNextDay(self.data['date'][-1])
-                        # check if the new date to add is equal to lastDatePlus1d
-                        if temp['date'] == lastDatePlus1d:
+                        # calculate the last date in self.data['date'] + 1 hour
+                        lastDatePlus1h = lib.getNextHour(self.data['date'][-1])
+                        # check if the new date to add is equal to lastDatePlus1h
+                        if temp['date'] == lastDatePlus1h:
                             self.data['amount'].append(item[1])
                             self.data['fiat'].append(item[2])
-                        else:
+                        else: # maybe there will be a bug if temp['date'] < lastDatePlus1h ???
                             self.data['amount'].append(self.data['amount'][-1])
                             self.data['fiat'].append(self.data['fiat'][-1])
                             file.insert( int(index)+1, line) 
                             # add line again because we added the same amount of the last in list
                             # otherwise it didn't work properly
-                        self.data['date'].append(lastDatePlus1d)
+                        self.data['date'].append(lastDatePlus1h)
                 if isfound == False:
                     if firstI:
                         # begin to add values from when self.ticker exist in json file
