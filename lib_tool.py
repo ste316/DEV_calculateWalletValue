@@ -122,7 +122,6 @@ class lib:
 
         # avarage volatily
         avg_volatility = volatility.mean(axis=0).get(0)
-        print(f'volatility: {avg_volatility * 100} %')
         
         return avg_volatility
 
@@ -279,5 +278,5 @@ class lib:
 
 
 if __name__ == '__main__':
-    print(lib.calcAvgVolatility([1383,1371,1373,1341]), 2)
-    #TODO implement volatility in main.py classes
+    # print(lib.calcAvgVolatility([1383,1371,1373,1341]), 2)
+    pass

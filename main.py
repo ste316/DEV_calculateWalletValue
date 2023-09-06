@@ -943,7 +943,7 @@ if __name__ == '__main__':
                 main = calculateWalletValue('crypto', privacy=False, load=True)
                 run = True
 
-        if option.crypto:
+        elif option.crypto:
             if option.privacy:
                 main = calculateWalletValue('crypto', privacy=True, load=False)
                 run = True
@@ -969,6 +969,6 @@ if __name__ == '__main__':
             main = cryptoBalanceReport()
             run = True
     elif option.version:
-        print(calculateWalletValue.version)
+        print(lib.getConfig()['version'])
     if run:
         main.run()
