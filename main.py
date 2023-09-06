@@ -886,17 +886,23 @@ class cryptoBalanceReport:
         lib.printWarn(f'Creating chart...')
         # set background [white, dark, whitegrid, darkgrid, ticks]
         sns.set_style('darkgrid') 
-
         # create 2 subplots for amount and value over time
-        fig, ax1 = plt.subplots()
-        ax2 = ax1.twinx()
-        ax1.plot(self.data['date'], self.data['amount'], 'g-')
-        ax2.plot(self.data['date'], self.data['fiat'], 'r-')
-        ax1.set_xlabel('Dates')
-        ax1.set_ylabel('Amount', color='g')
-        ax2.set_ylabel('Fiat Value', color='r')
-        # add title
-        plt.title(f'Amount and fiat value of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=12, weight='bold')
+        fig, ax = plt.subplots(1,2, figsize=(13, 8), tight_layout=True)
+
+        # ax[0] has double x axis with amount on the right and fiat value on the left
+        ax0_left_x = ax[0].twinx()
+        ax[0].plot(self.data['date'], self.data['amount'], 'g-')
+        ax0_left_x.plot(self.data['date'], self.data['fiat'], 'r-')
+        ax[0].set_xlabel('Dates')
+        ax[0].set_ylabel('Amount', color='g')
+        ax0_left_x.set_ylabel('Fiat Value', color='r')
+        ax[0].set_title(f'Amount and fiat value of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=11, weight='bold')
+
+        from pandas import DataFrame
+        # ax[1] has price of the coin based on self.data['fiat'] and self.data['amount']
+        ax[1].plot(self.data['date'], DataFrame(self.data['fiat'])/DataFrame(self.data['amount']))
+        ax[1].set_title(f'Price of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=11, weight='bold')
+
         # changing the fontsize and rotation of x ticks
         plt.xticks(fontsize=6.5, rotation = 45)
         plt.show()
