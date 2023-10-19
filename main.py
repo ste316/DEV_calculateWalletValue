@@ -30,13 +30,13 @@ class calculateWalletValue:
         self.load = load # option to load data from json, see calculateWalletValue.genPltFromJson()
         self.privacy = privacy
         self.wallet = {
-            # { asset: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')],] , total_invested: 0, currency: ''}
-            # { asset: [['ATOM', 2, 30, 'crypto'], ['USDC', 21.4, 21.4, 'fiat']]}
+            # { asset: [[symbol,qta,value, ('crypto' | 'stable' | 'fiat')], (liquid staked asset True|False)] , total_invested: 0, currency: ''}
+            # { asset: [['ATOM', 2, 30, 'crypto', False], ['USDC', 21.4, 21.4, 'stable', False], ['mSol', 1, 20, 'crypto', True] ]}
             'asset' : dict(),
             'total_invested': 0,
-            'currency': self.settings['currency']
+            'currency': self.settings['currency'],
+            'liquid_staked_asset': set() # list of asset that are liquid staked asset, see calculateWalletValue.handle_liquid_stake()
         }
-        self.wallet_liquid_stake = set() # list of asset that are liquid staked asset, see calculateWalletValue.handle_liquid_stake()
         lib.printWelcome(f'Welcome to Calculate Wallet Value!')
         lib.printWarn(f'Currency: {self.wallet["currency"]}')
         lib.printWarn(f'Privacy: {"ON" if self.privacy else "OFF"}')
@@ -175,9 +175,13 @@ class calculateWalletValue:
             
             # add liquid stake asset to the list
             # so in genPlt() it can be visualizzed as the base asset
-            if self.settings['convert_liquid_stake']:
-                if str(liquid_stake).replace(' ', '').lower() == 'yes':
-                    self.wallet_liquid_stake.add(symbol)
+            #if self.settings['convert_liquid_stake']:
+            if liquid_stake == None:
+                liquid_stake = False
+            elif str(liquid_stake).replace(' ', '').lower() == 'yes':
+                self.wallet['liquid_staked_asset'].add(symbol)
+                liquid_stake = True
+            else: liquid_stake = False
 
             # this block of 3 if statement sort the symbol 
             # in fiat, stablecoin crypto
@@ -193,40 +197,59 @@ class calculateWalletValue:
                         # without += operator since, it get wallet data 
                         # from walletValue.json record
                         # this implies that qta and value is correct
-                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'fiat']
+                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'fiat', liquid_stake]
                     else: 
                         # add qta, value will be calculated later
-                        self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'fiat']
+                        self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'fiat', liquid_stake]
 
             elif symbol.lower() in self.supportedStablecoin: # STABLE
                 if symbol.upper() in self.getAssetFromWallet(['stable']):
+                    # when symbol is already in wallet
+                    # add new qta (+=)
                     self.wallet['asset'][str(symbol).upper()][0] += qta
                 else: 
+                    # when symbol is NOT in wallet
                     if self.load:
-                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'stable']
-                    else: self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'stable']
+                        # when self.load is true add qta and value directly
+                        # without += operator since, it get wallet data 
+                        # from walletValue.json record
+                        # this implies that qta and value is correct
+                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'stable', liquid_stake]
+                    else: 
+                        # add qta, value will be calculated later
+                        self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'stable', liquid_stake]
 
             else: # CRYPTO
                 if symbol.upper() in self.getAssetFromWallet(['crypto']):
+                    # when symbol is already in wallet
+                    # add new qta (+=)
                     self.wallet['asset'][str(symbol).upper()][0] += qta
                 else: 
+                    # when symbol is NOT in wallet
                     if self.load:
-                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'crypto']
-                    else: self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'crypto']
+                        # when self.load is true add qta and value directly
+                        # without += operator since, it get wallet data 
+                        # from walletValue.json record
+                        # this implies that qta and value is correct
+                        self.wallet['asset'][str(symbol).upper()] = [qta, value, 'crypto', liquid_stake]
+                    else: 
+                        # add qta, value will be calculated later
+                        self.wallet['asset'][str(symbol).upper()] = [qta, 0.0, 'crypto', liquid_stake]
         
         if self.wallet['asset'] == {}:
             lib.printFail('File input.csv is empty or have some columns missing')
             exit()
         if err > 0:
             lib.printFail("Check your input.csv file, some value is missing")
-        
-        self.handleLiquidStake()
 
     # get assets from self.wallet, specify typeOfAsset('crypto' or 'stable' or 'fiat' or 'all')
     # default return: list of symbol filtered by type
     # pass fullItem=True to get a list of [symbol, qta, value, type]
     # pass getQta or getValue to get a list of [symbol, ?qta, ?value]
-    def getAssetFromWallet(self, typeOfAsset: list, fullItem = False, getQta = False, getValue = False) -> list[list] | list[str]:
+    def getAssetFromWallet(
+            self, typeOfAsset: list, fullItem: bool = False, getQta: bool = False, 
+            getValue: bool = False, getLS: bool = False
+        ) -> list[list] | list[str]:
         if set(typeOfAsset).intersection(set(['crypto', 'stable', 'fiat', 'all'])): # empty set are evaluated False
             listOfAsset = list()
             isAll = False
@@ -237,14 +260,21 @@ class calculateWalletValue:
                 item = list(item)
                 item = [item[0]]+item[1]
                 # final result
-                # item=['ATOM', 1.0, 12.5, 'crypto']
-                #       symbol, qta,    value,  type
+                # item=['ATOM', 1.0, 12.5, 'crypto', False]
+                #       symbol, qta, value,  type,   liquid stake
                 if item[3] in typeOfAsset or isAll: 
-                    if fullItem: listOfAsset.append(item); continue
-                    elif getQta and getValue: listOfAsset.append([item[0], item[1], item[2]]); continue
-                    elif getQta: listOfAsset.append([item[0], item[1]]); continue
-                    elif getValue: listOfAsset.append([item[0], item[2]]); continue
-                    else: listOfAsset.append(item[0]); continue
+                    toBeAdded = [item[0]]
+                    if fullItem: toBeAdded = item; continue
+                    if getQta: toBeAdded.append(item[1])
+                    if getValue: toBeAdded.append(item[2])
+                    if getLS: toBeAdded.append(item[4])
+                    #elif getQta and getValue and getLS: listOfAsset.append([item[0], item[1], item[2], item[4]])
+                    #elif getQta and getValue: listOfAsset.append([item[0], item[1], item[2]])
+                    #elif getQta: listOfAsset.append([item[0], item[1]])
+                    #elif getValue: listOfAsset.append([item[0], item[2]])
+                    #else: listOfAsset.append(item[0])
+                    if len(toBeAdded) == 1: toBeAdded = item[0]
+                    listOfAsset.append(toBeAdded)
 
             return listOfAsset
 
@@ -331,7 +361,7 @@ class calculateWalletValue:
         if self.settings['convert_liquid_stake']:
             # load all cached liquid stake asset
             cached_ls = lib.loadJsonFile('cached_liquid_stake.json')
-            for asset in self.wallet_liquid_stake:
+            for asset in self.wallet['liquid_staked_asset']:
                 if asset in cached_ls["asset"]:
                     # add the base token relative to liquid staked asset
                     base_asset.update({asset: cached_ls[asset]})
@@ -468,9 +498,9 @@ class calculateWalletValue:
     # [symbol, qta, value]
     def getWalletAsList(self) -> list:
         li = list()
-        temp = self.getAssetFromWallet(['all'], getQta=True, getValue=True) # merge dict
-        for symbol, qta, value in temp:
-            li.append([symbol, qta, value]) # convert dict to list
+        temp = self.getAssetFromWallet(['all'], getQta=True, getValue=True, getLS=True) # merge dict
+        for symbol, qta, value, ls in temp:
+            li.append([symbol, qta, value, ls]) # convert dict to list
         return li
     
     # calculate stablecoin percentage of portfolio
@@ -509,7 +539,7 @@ class calculateWalletValue:
             'total_invested': self.wallet['total_invested'],
             'currency': self.wallet['currency'],
             'price_provider': f"{'coinMarkerCap' if self.provider == 'cmc' else 'coinGecko' if self.provider == 'cg' else ''}",
-            'crypto': [['COIN, QTA, VALUE IN CURRENCY']]+self.getWalletAsList(), # all symbols
+            'crypto': [['COIN, QTA, VALUE IN CURRENCY', 'LIQUID STAKED ASSET']]+self.getWalletAsList(), # all symbols
             }
         )
         res = lib.updateJson(self.settings['wallet_path'], self.wallet['date'], temp)
