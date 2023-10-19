@@ -36,6 +36,7 @@ class calculateWalletValue:
             'total_invested': 0,
             'currency': self.settings['currency']
         }
+        self.wallet_liquid_stake = set() # list of asset that are liquid staked asset, see calculateWalletValue.handle_liquid_stake()
         lib.printWelcome(f'Welcome to Calculate Wallet Value!')
         lib.printWarn(f'Currency: {self.wallet["currency"]}')
         lib.printWarn(f'Privacy: {"ON" if self.privacy else "OFF"}')
@@ -142,17 +143,21 @@ class calculateWalletValue:
             print('')
 
     # check data and sort assets in crypto, stable and fiat
-    def checkInput(self, crypto: list) -> dict:
+    def checkInput(self, crypto: list, load: bool = False) -> dict:
         lib.printWarn('Validating data...')
         if len(crypto) == 0:
             lib.printFail(f'Input.csv is empty, fill it with your crypto...')
             exit()
         
+        if load and self.settings['convert_liquid_stake']:
+            pass
+            # inject liquid_stake to crypto variable
+
         err = 0
         # value refer to 'label' column in input.csv and it's NOT used
         # when self.load is true INSTEAD value refer to fiat value in the 
         # list 'crypto' walletValue.json inside and it is used
-        for (symbol, qta, value) in crypto:
+        for (symbol, qta, value, liquid_stake) in crypto:
             try:
                 if type(symbol) == float or (type(symbol) == 'str' and symbol.replace(" ", "") == ""): raise ValueError
                 if isnan(float(qta)): raise ValueError
@@ -167,6 +172,12 @@ class calculateWalletValue:
             if symbol == 'total_invested':
                 self.wallet['total_invested'] = qta
                 continue
+            
+            # add liquid stake asset to the list
+            # so in genPlt() it can be visualizzed as the base asset
+            if self.settings['convert_liquid_stake']:
+                if str(liquid_stake).replace(' ', '').lower() == 'yes':
+                    self.wallet_liquid_stake.add(symbol)
 
             # this block of 3 if statement sort the symbol 
             # in fiat, stablecoin crypto
@@ -208,6 +219,8 @@ class calculateWalletValue:
             exit()
         if err > 0:
             lib.printFail("Check your input.csv file, some value is missing")
+        
+        self.handleLiquidStake()
 
     # get assets from self.wallet, specify typeOfAsset('crypto' or 'stable' or 'fiat' or 'all')
     # default return: list of symbol filtered by type
@@ -310,6 +323,21 @@ class calculateWalletValue:
         self.wallet['total_crypto_stable'] = round(tot_crypto_stable, 2)
         self.wallet['date'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
+    # return a dict containing liquid staked asset and 
+    # their base token name
+    def handleLiquidStake(self) -> dict:
+        base_asset = {}
+        # if enabled in settings.json
+        if self.settings['convert_liquid_stake']:
+            # load all cached liquid stake asset
+            cached_ls = lib.loadJsonFile('cached_liquid_stake.json')
+            for asset in self.wallet_liquid_stake:
+                if asset in cached_ls["asset"]:
+                    # add the base token relative to liquid staked asset
+                    base_asset.update({asset: cached_ls[asset]})
+     
+        return base_asset
+    
     # format data to generate PLT
     # for crypto:
     #   if value of a certain crypto is <= 2%
@@ -324,9 +352,21 @@ class calculateWalletValue:
         lib.printWarn('Preparing data...')
         if self.type == 'crypto':
             temp = self.getAssetFromWallet(['stable', 'crypto'], getValue=True) # merge into one dict
+
+            value_to_add = {}
+            ls_asset = self.handleLiquidStake()
+            for ls, base in ls_asset.items():
+                # add as key: base token relative to its liquid stake
+                # add as value: liquid stake asset's value
+                value_to_add.update({base.upper(): self.wallet['asset'][ls.upper()][1]})
+            
             for symbol, value in temp:
                 if symbol == 'other': continue
-
+                
+                # do not show liquid stake asset, 
+                # instead add the relative value to the base asset
+                if self.settings['convert_liquid_stake'] and symbol.lower() in ls_asset.keys(): continue
+                
                 # group together all element whose value is <= than minimumPieSlice param, specified in settings.json
                 if value / self.wallet['total_crypto_stable'] <= self.settings['minimumPieSlice']:
                     if symbol_to_visualize[0][0] != 'other':
@@ -334,8 +374,14 @@ class calculateWalletValue:
                         symbol_to_visualize = [['other', 0.0], *symbol_to_visualize]
                     # increment value of symbol 'other'
                     symbol_to_visualize[0][1] += value
-                else: symbol_to_visualize.append([symbol, value])
-            
+                else: 
+                    if self.settings['convert_liquid_stake'] and symbol in value_to_add.keys():
+                        # do not show liquid stake asset, 
+                        # instead add the relative value to the base asset
+                        value += value_to_add[symbol] 
+
+                    symbol_to_visualize.append([symbol, value])
+
             return symbol_to_visualize
         
         elif self.type == 'total':
@@ -373,7 +419,7 @@ class calculateWalletValue:
         # define size of the image
         plt.figure(figsize=(7, 6), tight_layout=True)
         # create a pie chart with value in 'xx.x%' format
-        plt.pie(y, labels = mylabels, autopct='%1.1f%%', startangle=90, shadow=False)
+        plt.pie(y, labels = mylabels, autopct='%.2f', startangle=90, shadow=False)
 
         # add legend and title to pie chart
         plt.legend(title = "Symbols:")
@@ -523,7 +569,7 @@ class calculateWalletValue:
         self.wallet['date'] = record['date']
         self.wallet['currency'] = record['currency']
 
-        self.checkInput(record['crypto'][1:]) # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
+        self.checkInput(record['crypto'][1:], True) # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
         newdict = self.handleDataPlt()
         # if total invested is in the input.csv
         if 'total_invested' in record.keys():

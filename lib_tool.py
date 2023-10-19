@@ -16,9 +16,13 @@ class lib:
     WELCOME_BLUE = '\033[94m'
     ASK_USER_INPUT_PURPLE = '\033[95m'
 
+    bool_term_program = False # minor changes
+    if 'TERM_PROGRAM' in environ.keys():
+        bool_term_program = True
+
     @staticmethod
     def logConsole(text: str, color: str, end: str):
-        if 'TERM_PROGRAM' in environ.keys():
+        if lib.bool_term_program:
             print(f'{color}{text} {lib.ENDC}', end=end)
         else:
             print(text, end=end)

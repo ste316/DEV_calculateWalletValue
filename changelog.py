@@ -1,6 +1,9 @@
 #
 #                           TO DO
+# TODO [tool] add possibility to dump historical data such as total_crypto_stable, crypto data 
 # TODO [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
+#                             TODO rewrite liquid stake support and include liquid stake True|False on walletValue.json
+# TODO [cryptoBalanceReport, walletBalanceReport] add compatibility to liquid stake asset, loaded from json file
 # TODO [calculateWalletValue] implement volatility (Realized Volatility)
 #                            DONE add average volatility in lib_tool
 #                            TODO implement volatility for the entire portfolio
@@ -9,6 +12,7 @@
 # DONE [calculateWalletValue] store multiple record on walletValue.json for the same day
 #                            TODO ? change walletValue format to csv ? 
 #                            TODO --load display the last record per day
+# TODO [calculateWalletValue] show the top 3 growers coin related to the day before
 # TODO [all] ? change all custom datastruct to DataFrame ?
 # TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
 # TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
