@@ -1,8 +1,19 @@
 #
 #                           TO DO
+# TODO [new] integrate with kucoin api to update balance and save all orders to calc how much you earned from an asset
+# TODO [new] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
+# TODO [calculateWalletValue] delete (or add a flag) for total balance and leave only percentate increment
+# TODO [cryptoBalanceReport, walletBalanceReport] add a line chart with total invested
+# TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
+#                            TODO create function to aggregate more symbols
+#                            TODO create function wrappers for each keyword
+#                            TODO calculateWalletValue: use it also for liquid stake aggregate (insert this in checkInput(), before reading other crypto from file)
 # TODO [tool] add possibility to dump historical data such as total_crypto_stable, crypto data 
 # TODO [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
 #                             TODO rewrite liquid stake support and include liquid stake True|False on walletValue.json
+#                               ^  fix      File "d:\crypto\calculate_wallet_value\main.py", line 160, in checkInput
+#                                           for (symbol, qta, value, liquid_stake) in crypto:
+#                                           ValueError: not enough values to unpack (expected 4, got 3)
 # TODO [cryptoBalanceReport, walletBalanceReport] add compatibility to liquid stake asset, loaded from json file
 # TODO [calculateWalletValue] implement volatility (Realized Volatility)
 #                            DONE add average volatility in lib_tool
@@ -17,7 +28,6 @@
 # TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
 # TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
 # TODO [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
-# TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
 # TODO [walletBalanceReport] add increment percentage of a certain period
 # TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
 # TODO [calculateWalletValue] uniform symbol str structure( all lower )
