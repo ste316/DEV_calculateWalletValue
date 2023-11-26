@@ -1,10 +1,10 @@
 from lib_tool import lib
-from typing import Any, Union
-from time import sleep
-import pandas_datareader as web
-import yfinance as yf
-import requests
-import json
+from typing import Any
+from time import sleep, time
+from pandas_datareader import _utils
+from yfinance import download, Ticker
+from requests import get, Response
+from json import dumps, loads
 
 class cg_api_n():
     def __init__(self, currency: str) -> None:
@@ -44,10 +44,10 @@ class cg_api_n():
     # fetch all id, symbol and name from CoinGecko, run only once in a while to update it
     def fetchID(self) -> None: 
         path = 'coins/list'
-        coin = requests.get(self.baseurl+path).json()
+        coin = get(self.baseurl+path).json()
 
         with open('all_id_CG.json', 'w') as f:
-            f.write(json.dumps(coin, indent=4))
+            f.write(dumps(coin, indent=4))
         lib.printOk('Coin list successfully fetched and saved')
 
     # convert 'find' to CoinGecko id
@@ -69,7 +69,7 @@ class cg_api_n():
         # retrieve all possible id from all_id_CG.json file
         temp = dict()
         with open(self.all_id_path, 'r') as f:
-            filedata = json.loads(f.read())
+            filedata = loads(f.read())
 
             for crypto in filedata:
                 if crypto['symbol'] in find:
@@ -112,7 +112,7 @@ class cg_api_n():
     def dumpUsedId(self) -> None:
         with open(self.cacheFile, 'r') as f:
             # load 'fixed' and 'used' json object
-            temp = json.loads(f.read())
+            temp = loads(f.read())
         
         # update 'used' json object
         temp['used'] = self.usedSymbol
@@ -120,7 +120,7 @@ class cg_api_n():
 
         # dump json obj and write the new file
         with open(self.cacheFile, 'w') as f:
-            f.write(json.dumps(temp, indent=4))
+            f.write(dumps(temp, indent=4))
 
     # delete item in listToBeDeleted from a dict with str as key and any type of data as value
     def deleteControlItem(self, response: dict[str, Any]) -> dict[str, Any]:
@@ -163,13 +163,13 @@ class cg_api_n():
 
         return priceToReturn, missingCryptoFromConvert, missingCryptoFromPrice
 
-    def makeRequest(self, url: str, param: dict[str, Any]) -> requests.Response:
+    def makeRequest(self, url: str, param: dict[str, Any]) -> Response:
         error_count = 0
         sleep_time = 0
         msg = ''
 
         while True:
-            res = requests.get(url=url, params=param)
+            res = get(url=url, params=param)
             if res.status_code == 200: # all good
                 return res
 
@@ -230,7 +230,7 @@ class cmc_api:
         try:
             with open(self.all_id_path, 'r') as f:
                 try: 
-                    json.loads(f.read())['data']
+                    loads(f.read())['data']
                 except KeyError: 
                     f.close()
                     self.fetchID()
@@ -266,7 +266,7 @@ class cmc_api:
     def fetchID(self) -> int:
         url = 'cryptocurrency/map'
         res = self.session.get(self.baseurl+url)
-        open(self.all_id_path, 'w').write(json.dumps(res.json(), indent=4))
+        open(self.all_id_path, 'w').write(dumps(res.json(), indent=4))
         lib.printOk('Coin list successfully fetched and saved')
 
     # convert 'symbols' in CMC ids
@@ -283,7 +283,7 @@ class cmc_api:
 
         if len(symbols) > 0: 
             found = 0
-            data = json.loads(open('all_id_CMC.json', 'r').read())['data'] # once in a while run fetchID() to update it
+            data = loads(open('all_id_CMC.json', 'r').read())['data'] # once in a while run fetchID() to update it
 
             # check for every symbol in data
             for i in range(len(data)):
@@ -301,7 +301,7 @@ class cmc_api:
     # update used_id_CMC.json
     def updateUsedSymbol(self) -> None:
         with open(self.cacheFile, 'w') as f:
-            f.write(json.dumps(self.cachedSymbol))
+            f.write(dumps(self.cachedSymbol))
 
     # convert 'symbols' to CMC ids and retrieve their prices
     # @param symbols list of crypto tickers eg. ["BTC", "ETH"]
@@ -322,12 +322,12 @@ class cmc_api:
 
         try:
             response = self.session.get(self.baseurl+path, params=parameters)
-            data = json.loads(response.text)
+            data = loads(response.text)
             for symb, id in convertedSymbol.items():
                 toReturn[symb] = data['data'][id]["quote"][self.currency]["price"] # store only price
 
         except (ConnectionError, Timeout, TooManyRedirects):
-            data = json.loads(response.text)
+            data = loads(response.text)
         
         # if one or more symbols are not found for any kind of problem 
         # return also the missing one(s) and data
@@ -336,14 +336,67 @@ class cmc_api:
         
         return (toReturn, True)
 
-# retrieve price of 'symbol'
+from base64 import b64encode
+from hashlib import sha256
+from hmac import new
+
+class kc_api:
+    def __init__(self) -> None:
+        self.kc_info = lib.loadJsonFile('kc_info.json')
+        self.api_key: str = self.kc_info['key']
+        self.api_secret: str = self.kc_info['secret']
+        self.api_passphrase: str = self.kc_info['passphrase']
+        self.base = 'https://api.kucoin.com'
+
+    def prepareHeader(self, str_to_sign: str):
+        signature = b64encode(new(self.api_secret.encode('utf-8'), str_to_sign.encode('utf-8'), sha256).digest())
+        passphrase = b64encode(new(self.api_secret.encode('utf-8'), self.api_passphrase.encode('utf-8'), sha256).digest())
+        return signature, passphrase
+    
+    def getOrders(self): # impl of https://www.kucoin.com/docs/rest/spot-trading/orders/get-order-list
+        endpoint = '/api/v1/orders'
+        url = self.base+endpoint
+        now = int(time() * 1000)
+        str_to_sign = str(now) + 'GET' + endpoint
+
+        signature, passphrase = self.prepareHeader(str_to_sign)
+
+        headers = {
+            "KC-API-SIGN": signature, # The base64-encoded signature (see https://www.kucoin.com/docs/basic-info/connection-method/authentication/signing-a-message)
+            "KC-API-TIMESTAMP": str(now), # A timestamp for your request
+            "KC-API-KEY": self.api_key, # The API key as a string
+            "KC-API-PASSPHRASE": passphrase, # The passphrase you specified when creating the API key
+            "KC-API-KEY-VERSION": '2' # You can check the version of API key on the page of API Management
+        }
+
+        res = get(url, headers=headers) # open('test_kc_api.json', 'w').write(json.dumps(json.loads(res.text), indent=4))
+
+        if res.status_code == 200:
+            body = loads(res.text)
+            items = body['data']['items'] # list of orders
+
+            for item in items:
+                action = item['side']
+                symbols: list[str] = item['symbol'].split('-')
+
+                dealSize = item['dealSize']
+                dealFunds = item['dealFunds']
+
+                if action == 'sell':
+                    print(f'{dealSize} {symbols[0]} sold for {dealFunds} {symbols[1]}')
+                elif action == 'buy':
+                    print(f'{dealFunds} {symbols[1]} bought {dealSize} {symbols[0]}')
+
+        else: print(res.status_code)
+
+# retrieve price of 'symbol' 
 # @param symbol string eg. "EURUSD=X"
 # @return float, False if symbol cannot be found
 def yahooGetPriceOf(symbol: str):
     try:
-        data = yf.download(tickers = symbol, period ='1d', interval = '1m', progress=False)
+        data = download(tickers = symbol, period ='1d', interval = '1m', progress=False)
         return data.tail()['Close'][4]
-    except web._utils.RemoteDataError: 
+    except _utils.RemoteDataError: 
         # if symbol cannot be found
         lib.printFail(f'Error getting price of {symbol}')
         return False
@@ -351,7 +404,7 @@ def yahooGetPriceOf(symbol: str):
 def getTicker(ticker: str, start: str, end: str) -> float:
     # start and end format: yyyy-mm-dd
     if lib.isValidDate(start, '%Y-%m-%d') and lib.isValidDate(end, '%Y-%m-%d'):
-        data = yf.Ticker(ticker)
+        data = Ticker(ticker)
         return data.history(period='1mo', interval='1d')['Close'][0]
     else: 
         print('error')

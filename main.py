@@ -4,10 +4,10 @@ from pandas import read_csv
 from datetime import datetime
 from numpy import array
 from math import isnan
-import matplotlib.pyplot as plt
-import seaborn as sns
-import argparse
-import json
+from matplotlib.pyplot import figure, pie, legend, title, savefig, show, plot, xticks, subplots
+from seaborn import set_style
+from argparse import ArgumentParser
+from json import dumps, loads
 
 # 
 # Calculate your wallet value 
@@ -414,26 +414,26 @@ class calculateWalletValue:
         y = array(val)# numpy.array()
 
         # grafic settings
-        sns.set_style('whitegrid')
+        set_style('whitegrid')
         #sns.color_palette('pastel')
         # define size of the image
-        plt.figure(figsize=(7, 6), tight_layout=True)
+        figure(figsize=(7, 6), tight_layout=True)
         # create a pie chart with value in 'xx.x%' format
-        plt.pie(y, labels = mylabels, autopct='%.2f', startangle=90, shadow=False)
+        pie(y, labels = mylabels, autopct='%.2f', startangle=90, shadow=False)
 
         # add legend and title to pie chart
-        plt.legend(title = "Symbols:")
+        legend(title = "Symbols:")
         stable_percentage = self.getStableCoinPercentage()
         title_stablePercentage = f'Stablecoin Percentage: {" " if stable_percentage < 0 else stable_percentage}%'
         if self.privacy:
             # do not show total value
-            plt.title(f'{self.type.capitalize()} Balance: ***** {self.wallet["currency"]} | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
+            title(f'{self.type.capitalize()} Balance: ***** {self.wallet["currency"]} | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
  
         elif self.type == 'crypto' and self.wallet['total_invested'] > 0:
             # if type == crypto AND total_invested > 0
             # show total value and percentage of change given total_invested
             increasePercent = round((self.wallet['total_crypto_stable'] - self.wallet['total_invested'])/self.wallet['total_invested'] *100, 2)
-            plt.title(f'{self.type.capitalize()} Balance: {self.wallet["total_crypto_stable"]} {self.wallet["currency"]} ({increasePercent}% {"↑" if increasePercent>0 else "↓"}) | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
+            title(f'{self.type.capitalize()} Balance: {self.wallet["total_crypto_stable"]} {self.wallet["currency"]} ({increasePercent}% {"↑" if increasePercent>0 else "↓"}) | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
         else:
             # if type == total OR
             # if type == crypto AND total_invested <= 0
@@ -444,7 +444,7 @@ class calculateWalletValue:
             else: exit()
 
             # show total value
-            plt.title(f'{self.type.capitalize()} Balance: {total} {self.wallet["currency"]} | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
+            title(f'{self.type.capitalize()} Balance: {total} {self.wallet["currency"]} | {self.wallet["date"]}\n{title_stablePercentage}', fontsize=13, weight='bold')
 
         # format filename using current date
         filename = self.wallet['date'].replace("/",'_').replace(':','_').replace(' ',' T')+'.png'
@@ -453,7 +453,7 @@ class calculateWalletValue:
             # when load is enabled it get data from past record from walletValue.json
             # so you do NOT need to save the img and do NOT need to update json file
             if self.settings['save_img']:
-                plt.savefig(f'{self.settings["grafico_path"]}\\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}') #save image
+                savefig(f'{self.settings["grafico_path"]}\\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}') #save image
                 lib.printOk(f'Pie chart image successfully saved in {self.settings["grafico_path"]}\{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}')
             self.updateWalletValueJson()
             
@@ -461,7 +461,7 @@ class calculateWalletValue:
             # search 'def getCryptoIndex'
             #self.updateReportJson()
 
-        plt.show()
+        show()
 
     # return a list containing all asset in self.wallet
     # the list is composed of other list that are composed so:
@@ -488,7 +488,7 @@ class calculateWalletValue:
             return -1.0
 
     def updateReportJson(self):
-        temp = json.dumps({
+        temp = dumps({
             'date': self.wallet['date'],
             'currency': self.wallet['currency'],
             'NCIS': round(self.getCryptoIndex(), 2), # Nasdaq Crypto Index Settlement
@@ -502,7 +502,7 @@ class calculateWalletValue:
     # append the record in walletValue.json
     # it overwrite the record with the same date of today
     def updateWalletValueJson(self):
-        temp = json.dumps({ # data to be dumped
+        temp = dumps({ # data to be dumped
             'date': self.wallet['date'],
             'total_value': self.wallet['total_value'],
             'total_crypto_stable': self.wallet['total_crypto_stable'],
@@ -527,7 +527,7 @@ class calculateWalletValue:
         # load records of json file
         with open(self.settings['wallet_path'], 'r') as f:
             for line in f:
-                record.append(json.loads(line))
+                record.append(loads(line))
         # print all date of records
         for (i, rec) in enumerate(record):
             print(f"[{i}] {rec['date']}", end='\n')
@@ -669,7 +669,7 @@ class walletBalanceReport:
             f = list(f) # each element of 'f' is a line
             for i, line in enumerate(f):
                 if type(line) != dict:
-                    line = json.loads(line)
+                    line = loads(line)
 
                 # check field needed
                 if 'total_crypto_stable' not in line.keys() and self.type == 'crypto':
@@ -720,7 +720,7 @@ class walletBalanceReport:
         # define which assets to calc volatility on
         assets = dict()
         with open(self.settings['wallet_path'], 'r') as f:
-            line = json.loads(list(f)[-1])
+            line = loads(list(f)[-1])
             crypto_list = line['crypto'][1:]
             for item in crypto_list:
                 if item[0] != self.data['currency']:
@@ -730,7 +730,7 @@ class walletBalanceReport:
         crypto_data = dict()
         with open(self.settings['wallet_path'], 'r') as f:
             for line in f:
-                line = json.loads(line)
+                line = loads(line)
                 crypto_list = line['crypto'][1:]
                 date = line['date'].split(' ')[0]
                 total_val = line['total_value']
@@ -772,14 +772,14 @@ class walletBalanceReport:
     def genPlt(self):
         lib.printWarn(f'Creating chart...')
         # set background [white, dark, whitegrid, darkgrid, ticks]
-        sns.set_style('darkgrid') 
+        set_style('darkgrid') 
         # define size of the image
-        plt.figure(figsize=(7, 6), tight_layout=True)
-        plt.plot(self.data['date'], self.data['total_value'], color='red', marker='')
-        plt.title(f'{self.type.capitalize()} balance from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}\nVolatility percentage: {round(self.volatility, 2)}% \nCurrency: {self.settings["currency"]}', fontsize=14, weight='bold')
+        figure(figsize=(7, 6), tight_layout=True)
+        plot(self.data['date'], self.data['total_value'], color='red', marker='')
+        title(f'{self.type.capitalize()} balance from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}\nVolatility percentage: {round(self.volatility, 2)}% \nCurrency: {self.settings["currency"]}', fontsize=14, weight='bold')
         # changing the fontsize and rotation of x ticks
-        plt.xticks(fontsize=6.5, rotation = 45)
-        plt.show()
+        xticks(fontsize=6.5, rotation = 45)
+        show()
 
     def run(self) -> None:
         while True:
@@ -825,7 +825,7 @@ class cryptoBalanceReport:
     def retrieveCryptoList(self) -> None:
         with open(self.settings['wallet_path'], 'r') as f:
             for line in f:
-                crypto_list = json.loads(line)['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
+                crypto_list = loads(line)['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
                 for sublist in crypto_list:
                     self.cryptos.add(sublist[0])
         
@@ -887,7 +887,7 @@ class cryptoBalanceReport:
             firstI = True # first interaction
             file = list(file) # each element of file is a line
             for index, line in enumerate(file):
-                temp = json.loads(line)
+                temp = loads(line)
                 # parse the whole date + hours
                 temp['date'] = lib.parse_formatDate(temp['date'], format='%d/%m/%Y %H', splitBy=':')
                 crypto_list = temp['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
@@ -931,9 +931,9 @@ class cryptoBalanceReport:
     def genPlt(self) -> None:
         lib.printWarn(f'Creating chart...')
         # set background [white, dark, whitegrid, darkgrid, ticks]
-        sns.set_style('darkgrid') 
+        set_style('darkgrid') 
         # create 2 subplots for amount and value over time
-        fig, ax = plt.subplots(1,2, figsize=(13, 8), tight_layout=True)
+        fig, ax = subplots(1,2, figsize=(13, 8), tight_layout=True)
 
         # ax[0] has double x axis with amount on the right and fiat value on the left
         ax0_left_x = ax[0].twinx()
@@ -950,8 +950,8 @@ class cryptoBalanceReport:
         ax[1].set_title(f'Price of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=11, weight='bold')
 
         # changing the fontsize and rotation of x ticks
-        plt.xticks(fontsize=6.5, rotation = 45)
-        plt.show()
+        xticks(fontsize=6.5, rotation = 45)
+        show()
 
     def run(self) -> None:
         while True:
@@ -969,7 +969,7 @@ class cryptoBalanceReport:
 
 # parse arguments
 def get_args(): 
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument('--crypto', dest='crypto', action="store_true", help='view balance of crypto assets')
     parser.add_argument('--total', dest='total',action="store_true", help='view balance of fiat vs crypto assets')
     parser.add_argument('--calc', dest='calc',action="store_true", help='calculate wallet value')
