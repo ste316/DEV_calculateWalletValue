@@ -1,6 +1,8 @@
 #
 #                           TO DO
 # TODO [kucoin] integrate with kucoin api to update balance and save all orders to calc how much you earned from an asset
+# DONE [kucoin] update balance from kucoin api
+#               TODO add checks
 # TODO [kucoin] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
 # TODO [calculateWalletValue] delete (or add a flag) for total balance and leave only percentate increment
 # TODO [cryptoBalanceReport, walletBalanceReport] add a line chart with total invested

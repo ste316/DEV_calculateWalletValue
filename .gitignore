@@ -1,6 +1,8 @@
 *.json
 *.png
 *.csv
+*.ipynb
+.ipynb_checkpoints
 __pycache__/
 img/
 json/

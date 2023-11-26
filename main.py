@@ -1,6 +1,6 @@
-from new_api import cg_api_n, cmc_api, yahooGetPriceOf, getTicker
+from new_api import cg_api_n, cmc_api, kc_api, yahooGetPriceOf, getTicker
 from lib_tool import lib
-from pandas import read_csv
+from pandas import read_csv, concat
 from datetime import datetime
 from numpy import array
 from math import isnan
@@ -85,12 +85,19 @@ class calculateWalletValue:
         else:
             lib.printFail('Unexpected error, pass the correct argument, run again with option --help')
             exit()
+        
+        if self.settings['retrieve_kc_balance']:
+            # TODO add security checks
+            self.kc = kc_api()
+            self.kc.getBalance()
 
     # acquire csv data and convert it to a list
     # return a list
     def loadCSV(self) -> list:
         lib.printWarn('Loading value from input.csv...')
         df = read_csv('input.csv', parse_dates=True) # pandas.read_csv()
+        df_kc = read_csv('input_kc.csv') # kucoin asset
+        df = concat([df, df_kc], axis=0, ignore_index=True)
         return df.values.tolist() # convert dataFrame to list []
 
     # CoinGecko retrieve price of a single crypto
