@@ -19,7 +19,7 @@ from json import dumps, loads
 # 
 class calculateWalletValue:
     # Initialization variable and general settings
-    def __init__(self, type: str, load = False, privacy = False) -> None:
+    def __init__(self, type_: str, load = False, privacy = False) -> None:
         self.settings = lib.getSettings()
         self.config = lib.getConfig()
         self.invalid_sym = []
@@ -79,25 +79,32 @@ class calculateWalletValue:
                 self.cmc.fetchID()
 
         # set type
-        if type in ['crypto', 'total']: 
-            self.type = type
+        if type_ in ['crypto', 'total']: 
+            self.type = type_
             lib.printWarn(f'Report type: {self.type} wallet')
         else:
             lib.printFail('Unexpected error, pass the correct argument, run again with option --help')
             exit()
         
         if self.settings['retrieve_kc_balance']:
-            # TODO add security checks
-            self.kc = kc_api()
-            self.kc.getBalance()
+            try:
+                self.kc = kc_api()
+                if self.kc.error:
+                    raise Exception
+                if not self.kc.getBalance(): # try to update balance, if fail raise Exception
+                    raise Exception
+            except Exception:
+                self.settings['retrieve_kc_balance'] = False
+                lib.printFail('Failed to update Kucoin balance')
 
     # acquire csv data and convert it to a list
     # return a list
     def loadCSV(self) -> list:
         lib.printWarn('Loading value from input.csv...')
         df = read_csv('input.csv', parse_dates=True) # pandas.read_csv()
-        df_kc = read_csv('input_kc.csv') # kucoin asset
-        df = concat([df, df_kc], axis=0, ignore_index=True)
+        if self.settings['retrieve_kc_balance']:        
+            df_kc = read_csv('input_kc.csv') # read kucoin asset
+            df = concat([df, df_kc], axis=0, ignore_index=True)
         return df.values.tolist() # convert dataFrame to list []
 
     # CoinGecko retrieve price of a single crypto

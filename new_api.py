@@ -350,62 +350,72 @@ class kc_api:
         self.api_passphrase: str = self.kc_info['passphrase']
         self.symbol_blacklist: list[str] = self.kc_info['symbol_blacklist']
         self.base = 'https://api.kucoin.com'
+        self.error = False
 
+        checklist = [len(x.replace(' ', ''))>0 for x in [self.api_key, self.api_passphrase, self.api_secret] ]
+        if not all(checklist): # if any api info is empty -> error
+            lib.printFail('Failed to load Kucoin API')
+            self.error = True
+    
     def __prepareHeader(self, str_to_sign: str):
         signature = b64encode(new(self.api_secret.encode('utf-8'), str_to_sign.encode('utf-8'), sha256).digest())
         passphrase = b64encode(new(self.api_secret.encode('utf-8'), self.api_passphrase.encode('utf-8'), sha256).digest())
         return signature, passphrase
     
-    def __getHeader(self, endpoint: str, now: int):
+    # gen http header to auth 
+    def __getHeader(self, endpoint: str, now: int): # see https://www.kucoin.com/docs/basic-info/connection-method/authentication/signing-a-message
         str_to_sign = str(now) + 'GET' + endpoint
         signature, passphrase = self.__prepareHeader(str_to_sign)
         return  {
-            "KC-API-SIGN": signature, # The base64-encoded signature (see https://www.kucoin.com/docs/basic-info/connection-method/authentication/signing-a-message)
+            "KC-API-SIGN": signature, # The base64-encoded signature
             "KC-API-TIMESTAMP": str(now), # A timestamp for your request
             "KC-API-KEY": self.api_key, # The API key as a string
             "KC-API-PASSPHRASE": passphrase, # The passphrase you specified when creating the API key
             "KC-API-KEY-VERSION": '2' # You can check the version of API key on the page of API Management
         }
 
+    # retrieve kucoin balance, format and save it in input_kc.csv
     def getBalance(self):
+        if self.error:
+            return False
+        
         endpoint = '/api/v1/accounts'
         url = self.base+endpoint
         now = int(time() * 1000)
-        
         res = get(url, headers=self.__getHeader(endpoint, now))
-        #open('test_kc_api.json', 'w').write(dumps(loads(res.text), indent=4))
-
         body = loads(res.text) # load response body data
-        if res.status_code == 200 or body['code'] != '200000':
-            try:
-                df = DataFrame.from_records(body['data'], exclude=['available','holds', 'type', 'id'])
+        try:
+            if res.status_code == 200 or body['code'] != '200000':
+                    df = DataFrame.from_records(body['data'], exclude=['available','holds', 'type', 'id'])
 
-                # rename column, convert qta to float, delete rows with qta <= 0
-                df.rename({'currency': 'symbol', 'balance': 'qta'}, axis=1, inplace=True)
-                convert_dict = {'symbol': str, 'qta': float }
-                df = df.astype(convert_dict)
-                df = df[df['qta'] > 0]
-                
-                # add missing columns to match input.csv columns
-                df['label'] = 'kucoin'
-                df['liquid_stake'] = 'no'
+                    # rename column, convert qta to float, delete rows with qta <= 0
+                    df.rename({'currency': 'symbol', 'balance': 'qta'}, axis=1, inplace=True)
+                    convert_dict = {'symbol': str, 'qta': float }
+                    df = df.astype(convert_dict)
+                    df = df[df['qta'] > 0]
+                    
+                    # add missing columns to match input.csv columns
+                    df['label'] = 'kucoin'
+                    df['liquid_stake'] = 'no'
 
-                # filter using the blacklist, can be edit in kc_info.json
-                df = df[~df['symbol'].isin(self.symbol_blacklist)]
-                df['symbol'] = df['symbol'].str.lower()
+                    # filter using the blacklist, can be edit in kc_info.json
+                    df = df[~df['symbol'].isin(self.symbol_blacklist)]
+                    df['symbol'] = df['symbol'].str.lower()
 
-                df.to_csv('input_kc.csv', sep=',', index=False)
-                return True
-            except Exception as e:
-                lib.printFail(f'Kucoin: {e}')
-                return False
-        else: 
-            lib.printFail(f'Kucoin: status code {res.status_code}, status code in body {body["code"]}')
+                    df.to_csv('input_kc.csv', sep=',', index=False)
+                    return True
+            else: 
+                raise Exception
+        except Exception:
+            lib.printFail(f'Kucoin: status code: {res.status_code}, error msg: {body["msg"]}')
             return False
 
     def getOrders(self):
         lib.printFail('Unimplemented...')
         exit()
+
+        if self.error:
+            return False
         now = int(time() * 1000)
         endpoint = f'/api/v1/orders?currentPage=1' # 
         url = self.base+endpoint
@@ -439,11 +449,11 @@ class kc_api:
 
                 if action == 'sell':
                     order = DataFrame({'id': [item['id']], 'asset_in_name': [symbols[0]], 'asset_in_amount': [dealSize], 'asset_out_name': [symbols[1]], 'asset_out_amount': [dealFunds], 'created_at': [item['created_at']/1000]})
-                    orders = concat([orders, order], axis=0, ignore_index=True)
+                    # orders = concat([orders, order], axis=0, ignore_index=True)
                     # print(f'{dealSize} {symbols[0]} sold for {dealFunds} {symbols[1]}')
                 elif action == 'buy':
                     order = DataFrame({'id': [item['id']], 'asset_in_name': [symbols[1]], 'asset_in_amount': [dealFunds], 'asset_out_name': [symbols[0]], 'asset_out_amount': [dealSize], 'created_at': [item['created_at']/1000]})
-                    orders = concat([orders, order], axis=0, ignore_index=True)
+                    # orders = concat([orders, order], axis=0, ignore_index=True)
                     # print(f'{dealFunds} {symbols[1]} bought {dealSize} {symbols[0]}')
 
         else: print(res.status_code); print(body)

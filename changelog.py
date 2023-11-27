@@ -1,46 +1,41 @@
 #
-#                           TO DO
-# TODO [kucoin] integrate with kucoin api to update balance and save all orders to calc how much you earned from an asset
-# DONE [kucoin] update balance from kucoin api
-#               TODO add checks
-# TODO [kucoin] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
-# TODO [calculateWalletValue] delete (or add a flag) for total balance and leave only percentate increment
-# TODO [cryptoBalanceReport, walletBalanceReport] add a line chart with total invested
-# TODO [cryptoBalanceReport] add special keyword to see stablecoin aggretated
-#                            TODO create function to aggregate more symbols
-#                            TODO create function wrappers for each keyword
-#                            TODO calculateWalletValue: use it also for liquid stake aggregate (insert this in checkInput(), before reading other crypto from file)
-# TODO [tool] add possibility to dump historical data such as total_crypto_stable, crypto data 
-# TODO [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
-#                             TODO rewrite liquid stake support and include liquid stake True|False on walletValue.json
-#                               ^  fix      File "d:\crypto\calculate_wallet_value\main.py", line 160, in checkInput
-#                                           for (symbol, qta, value, liquid_stake) in crypto:
-#                                           ValueError: not enough values to unpack (expected 4, got 3)
-# TODO [cryptoBalanceReport, walletBalanceReport] add compatibility to liquid stake asset, loaded from json file
+#                           TODOs
+#             urgent:  
+# TODO [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
+# TODO [walletBalanceReport] add a line chart with total invested
+# TODO [calculateWalletValue] [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
+#                             TODO create function to aggregate more symbols and create function wrappers for each keyword (e.g. stables)
+# TODO [walletBalanceReport] add increment percentage of a certain period
+# TODO [calculateWalletValue] change self.wallet data struct to DataFrame, 
+#                             also on cryptoBalanceReport and walletBalanceReport?
+# TODO ? change walletValue format to csv ? 
+# TODO [calculateWalletValue] rewrite liquid stake support and include liquid stake True|False on walletValue.json
+#                              File "d:\crypto\calculate_wallet_value\main.py", line 160, in checkInput
+#                              for (symbol, qta, value, liquid_stake) in crypto:
+#                              ValueError: not enough values to unpack (expected 4, got 3)
+# TODO [calculateWalletValue] show the top 3 growers coin related to the day before ?
+#
+#              others:
+# TODO [kucoin] [cryptoBalanceReport] integrate with kucoin api to update balance and save all orders to calc how much you earned from an asset
+# TODO [tool] add possibility to dump historical data such as total_crypto_stable, crypto data from walletValue.json
+# TODO [cryptoBalanceReport] [walletBalanceReport] add compatibility to liquid stake asset, loaded from json file
 # TODO [calculateWalletValue] implement volatility (Realized Volatility)
 #                            DONE add average volatility in lib_tool
 #                            TODO implement volatility for the entire portfolio
 #                            TODO compare portfolio volatility with btc and eth volatility or other crypto index
-#                            TODO [cryptoBalanceReport, walletBalanceReport] implement volatility
-# DONE [calculateWalletValue] store multiple record on walletValue.json for the same day
-#                            TODO ? change walletValue format to csv ? 
-#                            TODO --load display the last record per day
-# TODO [calculateWalletValue] show the top 3 growers coin related to the day before
-# TODO [all] ? change all custom datastruct to DataFrame ?
+#                            TODO [cryptoBalanceReport] [walletBalanceReport] implement volatility
 # TODO [main] fix arg parser logic for param: --calc --load ('--total' | '--crypto') to run genPltFromJson() with specified type
 # TODO [cg_api_n, cmc_api] add timeout to requests https://datagy.io/python-requests-timeouts/
-# TODO [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
-# TODO [walletBalanceReport] add increment percentage of a certain period
-# TODO [walletBalanceReport, cryptoBalanceReport] add special keyword to choose date range (ytd ecc)
-# TODO [calculateWalletValue] uniform symbol str structure( all lower )
+# TODO [cryptoBalanceReport] [walletBalanceReport] add special keyword to choose date range (ytd ecc)
 # TODO [calculateWalletValue] fix handleDataPlt when one asset is a major % of self.wallet['total_crypto_stable']
-# TODO [calculateWalletValue] add support for CG api key
+# TODO [walletBalanceReport] --load ask for user input to display only the last record for each day
 
-# TODO [new] watch defillama api https://defillama.com/docs/api
-# TODO [new] get defi vault data https://nanoly.com/api
-# TODO [new] airdrop tracker, Track staked tokens
+#                           FUTURE IDEAS
 # TODO [new] add notification on discord/other messaging platform
-#            TODO [new] add buy price, send alert to buy when condition meets
+# TODO [new] add buy price, send alert/use kucoin api to buy when condition meets
+# TODO [new] airdrop tracker, Track staked tokens and adds snapshot date/requirments of upcoming airdrop
+# TODO [new] watch defillama api https://defillama.com/docs/api
+# TODO [calculateWalletValue] add support for CG api key
 
 #                           CHANGELOG
 #  DONE [calculateWalletValue] PLT rename asset with weight < %5 to OTHER 
@@ -63,7 +58,7 @@
 #  DONE [github] rewrite README.md
 #  DONE [github] add wallet to donate
 #  DONE [new] [cryptoBalanceReport] add crypto balance(btc, eth) report over time
-#  DONE [cryptoBalanceReport, walletBalanceReport] improve date managment
+#  DONE [cryptoBalanceReport] [walletBalanceReport] improve date managment
 #  DONE [main] refactor and comment code
 #  DONE [calculateWalletValue] add alternative api
 #                              https://coinmarketcap.com/api/pricing/
@@ -100,10 +95,10 @@
 # DONE [calculateWalletValue] adapt to cg_api changes
 # DONE [calculateWalletValue] fix json file naming, handling
 # DONE [calculateWalletValue] add option to (not) save plt image
-# DONE [walletBalanceReport, cryptoBalanceReport] add possibility to rerun without exit the program
+# DONE [cryptoBalanceReport] [walletBalanceReport] add possibility to rerun without exit the program
 # DONE [lib] add getConfig, add getUserInput, improved leggibility getIndexOfDate, modify getUserInputDate to use getUserInput
 # DONE [calculateWalletValue, walletBalanceReport, cryptoBalanceReport] add external config
-# DONE [walletBalanceReport, cryptoBalanceReport] fix rerun process
+# DONE [cryptoBalanceReport] [walletBalanceReport] fix rerun process
 # DONE [lib] fix getUserInputDate, function nested in a while True
 # DONE [cryptoBalanceReport] implement date range
 # DONE [calculateWalletValue] change internal structure of self.wallet
@@ -112,3 +107,6 @@
 # DONE [calculateWalletValue] add function to get asset list from self.wallet
 # DONE [all] add input checks and file setup for first run
 # DONE [calculateWalletValue] add report.json support
+# DONE [calculateWalletValue] store multiple record on walletValue.json for the same day
+# DONE [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
+# DONE [kucoin] update balance from kucoin api
