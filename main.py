@@ -72,7 +72,7 @@ class calculateWalletValue:
 
         # fetch all crypto symbol and name from CoinGecko or CoinMarketCap
         # run once or if there is any new crypto
-        if self.settings['fetchSymb'] == True: 
+        if self.settings['fetch_symb'] == True: 
             if self.provider == 'cg':
                 self.cg.fetchID()
             if self.provider == 'cmc':
@@ -233,8 +233,6 @@ class calculateWalletValue:
             exit()
         if err > 0:
             lib.printFail("Check your input.csv file, some value is missing")
-        
-        self.handleLiquidStake()
 
     # get assets from self.wallet, specify typeOfAsset('crypto' or 'stable' or 'fiat' or 'all')
     # default return: list of symbol filtered by type
@@ -365,7 +363,18 @@ class calculateWalletValue:
         symbol_to_visualize = list()  # [ [symbol, value], ...]
         lib.printWarn('Preparing data...')
         if self.type == 'crypto':
-            temp = self.getAssetFromWallet(['stable', 'crypto'], getValue=True) # merge into one dict
+            if self.settings['aggregate_stablecoin']:
+                stable = self.getAssetFromWallet(['stable'], getValue=True)
+                stable_value = 0
+                stable_list = []
+                for symbol, value in stable:
+                    stable_value += value
+                    stable_list.append(symbol)  
+                
+                temp = self.getAssetFromWallet(['crypto'], getValue=True)
+                temp.append(['STABLEs', stable_value])
+            else: 
+                temp = self.getAssetFromWallet(['stable', 'crypto'], getValue=True) # merge into one dict
 
             value_to_add = {}
             ls_asset = self.handleLiquidStake()
@@ -381,8 +390,8 @@ class calculateWalletValue:
                 # instead add the relative value to the base asset
                 if self.settings['convert_liquid_stake'] and symbol.lower() in ls_asset.keys(): continue
                 
-                # group together all element whose value is <= than minimumPieSlice param, specified in settings.json
-                if value / self.wallet['total_crypto_stable'] <= self.settings['minimumPieSlice']:
+                # group together all element whose value is <= than minimum_pie_slice param, specified in settings.json
+                if value / self.wallet['total_crypto_stable'] <= self.settings['minimum_pie_slice']:
                     if symbol_to_visualize[0][0] != 'other':
                         # add 'other' as first element
                         symbol_to_visualize = [['other', 0.0], *symbol_to_visualize]
@@ -622,8 +631,10 @@ class walletBalanceReport:
         self.supportedFiat = self.config['supportedFiat']
         self.supportedStablecoin = self.config['supportedStablecoin']
         self.settings['wallet_path'] = self.settings['path']+ '\\walletValue.json'
+        self.include_total_invested = False 
         self.data = {
             'date': [],
+            'total_invested': [],
             'total_value': [],
             'currency': self.settings['currency']
         }
@@ -678,6 +689,10 @@ class walletBalanceReport:
     #
     def loadDatetime(self) -> None:
         lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
+        lib.printWarn('Do you want to display total invested in line chart?(y/n)')
+        if input().lower() in ['y', 'yes', 'si']:
+            self.include_total_invested = True
+        
         with open(self.settings['wallet_path'], 'r') as f:
             firstI = True # first interaction
             f = list(f) # each element of 'f' is a line
@@ -690,6 +705,9 @@ class walletBalanceReport:
                     continue
                 if 'total_value' not in line.keys() and self.type == 'total':
                     continue
+                if self.include_total_invested:
+                    if 'total_invested' not in line.keys():
+                        continue
 
                 temp_date = lib.parse_formatDate(line['date'], format='%d/%m/%Y %H', splitBy=':') # parse date format: dd/mm/yyyy hh
                 if self.type == 'total':
@@ -711,6 +729,7 @@ class walletBalanceReport:
                 if firstI:
                     self.data['date'].append(temp_date)
                     self.data['total_value'].append(total_value)
+                    if self.include_total_invested: self.data['total_invested'].append(line['total_invested'])
                     firstI = False
                     continue
                 
@@ -719,8 +738,10 @@ class walletBalanceReport:
                 # check if temp_date (new date to add) is equal to lastDatePlus1h
                 if temp_date == lastDatePlus1h:
                     self.data['total_value'].append(total_value)
+                    if self.include_total_invested:  self.data['total_invested'].append(line['total_invested'])
                 else: # maybe there will be a bug if temp_date < lastDatePlus1h ???
                     self.data['total_value'].append(self.data['total_value'][-1])
+                    if self.include_total_invested: self.data['total_invested'].append(self.data['total_invested'][-1])
                     f.insert(int(i)+1, line)
                     # add line again because we added the same amount of the last in list
                     # otherwise it didn't work properly
@@ -789,8 +810,12 @@ class walletBalanceReport:
         set_style('darkgrid') 
         # define size of the image
         figure(figsize=(7, 6), tight_layout=True)
+        if self.include_total_invested: plot(self.data['date'], self.data['total_invested'])
         plot(self.data['date'], self.data['total_value'], color='red', marker='')
-        title(f'{self.type.capitalize()} balance from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}\nVolatility percentage: {round(self.volatility, 2)}% \nCurrency: {self.settings["currency"]}', fontsize=14, weight='bold')
+
+        # calc performance of the selected period
+        performance = (self.data["total_value"][-1]-self.data["total_value"][0])/self.data["total_value"][0] * 100
+        title(f'{self.type.capitalize()} balance from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}\nVolatility percentage: {round(self.volatility, 2)}% \nPerformance: {round(performance, 2)}% \nCurrency: {self.settings["currency"]}', fontsize=14, weight='bold')
         # changing the fontsize and rotation of x ticks
         xticks(fontsize=6.5, rotation = 45)
         show()
@@ -808,7 +833,10 @@ class walletBalanceReport:
             temp = lib.getUserInput()
             if temp.replace(' ', '') == '' or temp in ['n', 'N']:
                 break
-            self.__init__()
+            
+            lib.printWarn('Choose type: crypto or total? ')
+            type_ = input()
+            self.__init__(type_)
 
 
 # 

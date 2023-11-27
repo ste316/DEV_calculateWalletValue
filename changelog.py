@@ -1,11 +1,9 @@
 #
 #                           TODOs
-#             urgent:  
-# TODO [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
-# TODO [walletBalanceReport] add a line chart with total invested
-# TODO [calculateWalletValue] [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
-#                             TODO create function to aggregate more symbols and create function wrappers for each keyword (e.g. stables)
-# TODO [walletBalanceReport] add increment percentage of a certain period
+#              urgent:  
+# TODO DOING [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
+# TODO [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
+#                           TODO create function to aggregate more symbols and create function wrappers for each keyword (e.g. stables)
 # TODO [calculateWalletValue] change self.wallet data struct to DataFrame, 
 #                             also on cryptoBalanceReport and walletBalanceReport?
 # TODO ? change walletValue format to csv ? 
@@ -110,3 +108,6 @@
 # DONE [calculateWalletValue] store multiple record on walletValue.json for the same day
 # DONE [calculateWalletValue] show liquid staked asset converted as underline asset, es. convert mSol and sum it to Sol
 # DONE [kucoin] update balance from kucoin api
+# DONE [walletBalanceReport] add a line chart with total invested
+# DONE [walletBalanceReport] add increment percentage of a certain period
+# DONE [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()

@@ -3,7 +3,7 @@ from typing import Any
 from time import sleep, time
 from pandas_datareader import _utils
 from yfinance import download, Ticker
-from requests import get, Response
+from requests import get, Response, post
 from json import dumps, loads
 
 class cg_api_n():
@@ -362,18 +362,27 @@ class kc_api:
         passphrase = b64encode(new(self.api_secret.encode('utf-8'), self.api_passphrase.encode('utf-8'), sha256).digest())
         return signature, passphrase
     
-    # gen http header to auth 
-    def __getHeader(self, endpoint: str, now: int): # see https://www.kucoin.com/docs/basic-info/connection-method/authentication/signing-a-message
-        str_to_sign = str(now) + 'GET' + endpoint
+    # gen http header to auth
+    # param:
+    #       endpoint: api route
+    #       now: unix-time in seconds
+    #       post: use post method
+    def __getHeader(self, endpoint: str, now: int, json_data: dict = {}, post: bool = False): # see https://www.kucoin.com/docs/basic-info/connection-method/authentication/signing-a-message
+        str_to_sign = f'{now}{"GET" if not post else "POST"}{endpoint}{dumps(json_data, separators=(",", ":"), ensure_ascii=False) if post else ""}'
         signature, passphrase = self.__prepareHeader(str_to_sign)
-        return  {
+        header = {
             "KC-API-SIGN": signature, # The base64-encoded signature
             "KC-API-TIMESTAMP": str(now), # A timestamp for your request
             "KC-API-KEY": self.api_key, # The API key as a string
             "KC-API-PASSPHRASE": passphrase, # The passphrase you specified when creating the API key
-            "KC-API-KEY-VERSION": '2' # You can check the version of API key on the page of API Management
+            "KC-API-KEY-VERSION": '2', # You can check the version of API key on the page of API Management
         }
-
+        if post:
+            header['Content-Type'] = "application/json"
+            header['Accept'] = 'application/json'
+        # print(header)
+        return header
+    
     # retrieve kucoin balance, format and save it in input_kc.csv
     def getBalance(self):
         if self.error:
@@ -409,6 +418,31 @@ class kc_api:
         except Exception:
             lib.printFail(f'Kucoin: status code: {res.status_code}, error msg: {body["msg"]}')
             return False
+
+    # https://www.kucoin.com/docs/rest/spot-trading/orders/place-order 
+    # https://www.kucoin.com/docs/rest/spot-trading/orders/place-order-test
+    def placeOrder(self, symbol: str, side: str, size: float): 
+        # FIXME
+        from uuid import uuid4
+        if self.error or (side.lower() not in ['buy', 'sell']):
+            return False
+        pass
+
+        endpoint = '/api/v1/orders/test' # TODO switch from test endpoint
+        url = self.base+endpoint
+        now = int(time() * 1000)
+        data = {
+            'clientOid': str(uuid4()).replace("-",""),
+            'side': side,
+            'symbol': symbol,
+            'type': 'market',
+            'size': str(size)
+        }
+        #endpoint += f'?clientOid={clientOid}&side={side}&symbol={symbol}&type=market&size={size}'
+        headers = self.__getHeader(endpoint, now, data, True)
+
+        res = post(url, headers=headers, data=data)
+        print(res.status_code, res.json())
 
     def getOrders(self):
         lib.printFail('Unimplemented...')
@@ -482,6 +516,5 @@ def getTicker(ticker: str, start: str, end: str) -> float:
         return 0
 
 if __name__ == '__main__':
-    a = cg_api_n('USD')
-    out = a.getPriceOf(['RUNE', 'LINK', 'EWT', 'MATIC', 'ATOM'])
-    print(out)
+    a = kc_api()
+    a.placeOrder('ETH-USDT', 'buy', 0.000100)
