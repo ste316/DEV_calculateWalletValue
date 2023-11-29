@@ -1,7 +1,9 @@
+# the order of TODOs matter, the top one are the most important or urgent
 #
 #                           TODOs
 #              urgent:  
 # TODO DOING [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
+#                     prompt a recap of the upcoming trades before execute'em
 # TODO [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
 #                           TODO create function to aggregate more symbols and create function wrappers for each keyword (e.g. stables)
 # TODO [calculateWalletValue] change self.wallet data struct to DataFrame, 

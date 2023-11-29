@@ -34,7 +34,8 @@ class calculateWalletValue:
             # { asset: [['ATOM', 2, 30, 'crypto'], ['USDC', 21.4, 21.4, 'fiat']]}
             'asset' : dict(),
             'total_invested': 0,
-            'currency': self.settings['currency']
+            'currency': self.settings['currency'],
+            'kucoin_asset': dict()
         }
         self.wallet_liquid_stake = set() # list of asset that are liquid staked asset, see calculateWalletValue.handle_liquid_stake()
         lib.printWelcome(f'Welcome to Calculate Wallet Value!')
@@ -88,14 +89,14 @@ class calculateWalletValue:
         
         if self.settings['retrieve_kc_balance']:
             try:
-                self.kc = kc_api()
+                self.kc = kc_api(self.wallet['currency'])
                 if self.kc.error:
                     raise Exception
                 if not self.kc.getBalance(): # try to update balance, if fail raise Exception
                     raise Exception
-            except Exception:
+            except Exception as e:
                 self.settings['retrieve_kc_balance'] = False
-                lib.printFail('Failed to update Kucoin balance')
+                lib.printFail(f'Failed to update Kucoin balance, reason: {e}')
 
     # acquire csv data and convert it to a list
     # return a list
@@ -168,8 +169,8 @@ class calculateWalletValue:
             # inject liquid_stake to crypto variable
 
         err = 0
-        # value refer to 'label' column in input.csv and it's NOT used
-        # when self.load is true INSTEAD value refer to fiat value in the 
+        # value variable refer to 'label' column in input.csv
+        # when self.load is true INSTEAD value variable refer to fiat value in the 
         # list 'crypto' walletValue.json inside and it is used
         for (symbol, qta, value, liquid_stake) in crypto:
             try:
@@ -181,6 +182,10 @@ class calculateWalletValue:
                 if not str(symbol) == 'nan': self.invalid_sym.append(str(symbol))
                 err +=1
                 continue
+
+            if not load and value == 'kucoin': 
+                # when reading csv files <value> refer to label column in csv 
+                self.wallet['kucoin_asset'][symbol] = qta
 
             # add total_invested from csv to self.wallet['total_invested']
             if symbol == 'total_invested':
@@ -301,7 +306,7 @@ class calculateWalletValue:
         self.wallet['date'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
     # CoinGecko calculate the value of crypto and format data to be used in handleDataPlt()
-    def CGcalcValue(self) -> dict:
+    def CGcalcValue(self):
         tot = 0.0
         tot_crypto_stable = 0.0
         lib.printWarn('Retriving current price...')
@@ -601,6 +606,80 @@ class calculateWalletValue:
 
         self.genPlt(newdict)
 
+    # TODO explain this function and its param
+    def autobalance_portfolio(self):
+        portfolio_pct_target = lib.loadJsonFile('portfolio_pct.json')
+        kc_info = lib.loadJsonFile('kc_info.json') # load necessary files
+        portfolio_pct_wallet = dict()
+        min_rebalance_pct = portfolio_pct_target['min_rebalance']
+        del portfolio_pct_target['min_rebalance'] # extract min_rebalance from portfolio_pct_target
+        BUY = 'buy'
+        SELL = 'sell'
+
+        # HANDLE LIQUID STAKED ASSET
+        # sum their value to the base token and delete the liquid staked asset from portfolio_pct_wallet
+        value_to_add = {}
+        ls_asset = self.handleLiquidStake()
+        for ls, base in ls_asset.items():
+            # add as key: base token relative to its liquid stake
+            # add as value: liquid stake asset's value
+            value_to_add.update({base.upper(): [self.wallet['asset'][ls.upper()][1], ls.upper()]})
+
+        to_delete = []
+        for (symb, [_, value, _]) in self.wallet['asset'].items():
+            # calc each asset weight in the portfolio
+            portfolio_pct_wallet[symb] = round(value / self.wallet['total_crypto_stable'] * 100, 4)
+            if symb in value_to_add.keys(): # if symb has a liquid stake version in the porfolio
+                portfolio_pct_wallet[symb] += round(value_to_add[symb][0] / self.wallet['total_crypto_stable'] * 100, 4)
+                to_delete.append(value_to_add[symb][1])
+                # sum its value and delete the ticker
+        for symb in to_delete: del portfolio_pct_wallet[symb]
+       
+        orders = dict()
+        tot_buy_size = 0
+        for symb, expected_pct in portfolio_pct_target.items():
+            # expected_value is the expected value of the crypto, following portfolio_pct.json weight 
+            expected_value = expected_pct/100*self.wallet["total_crypto_stable"] 
+            actual_value = portfolio_pct_wallet[symb]/100*self.wallet["total_crypto_stable"]
+            # buy_size is the amount to be sold/bought to rebalance the portfolio
+            buy_size = round(expected_value-actual_value, 4)
+            buy_size_pct = round(buy_size / self.wallet["total_crypto_stable"] * 100, 4) # buy_size in percentage
+            if abs(buy_size_pct) >= abs(min_rebalance_pct):
+                buy_size = abs(buy_size)
+                if buy_size_pct < 0:
+                    orders[symb] = {'type': SELL, 'amount': buy_size, 'currency': self.wallet['currency']}
+                    tot_buy_size -= buy_size
+                else:
+                    orders[symb] = {'type': BUY, 'amount': buy_size, 'currency': self.wallet['currency']}
+                    tot_buy_size += buy_size
+
+        # TODO 
+        # orders refer to all orders needed to rebalance the portfolio, not the orders that you can make on kucoin
+        # - you need to check that the assets to buy/sell are on kucoin, 
+        # - find the best market on kucoin to trade it
+        # - make the orders
+        # - comunicate which assets are not tradable 
+        print('\nORDERS', orders) 
+        print('\nKUCOIN ASSET', self.wallet['kucoin_asset'])
+        buy_power = 0
+        if self.wallet['currency'] in kc_info['tradable_counterpart_whitelist']:
+            buy_power += self.wallet['kucoin_asset'].pop(self.wallet['currency'].lower())
+
+        # asset is the available asset in Kucoin balance that are also in tradable_counterpart_whitelist
+        asset = set(kc_info['tradable_counterpart_whitelist']).intersection([x.upper() for x in self.wallet['kucoin_asset'].keys()])
+        kc_price = self.kc.getFiatPrice(asset)
+        del kc_price['currency']
+
+        for symbol, price in kc_price.items():
+            # self.wallet["kucoin_asset"][asset.lower()] contain the quantity 
+            # so in case of USDT or USDC, the amount of dollars
+            buy_power += price * self.wallet["kucoin_asset"][symbol.lower()]
+
+        # buy power is the total amount of self.wallet['currency'] (EUR) available on kucoin
+        # tot_buy_size is the total amount of self.wallet['currency'] (EUR) that is needed to execute the rebalancing
+        # tot_buy_size takes into account also the sell orders
+        print(buy_power, tot_buy_size)
+
     # main 
     def run(self) -> None: 
         if self.load:
@@ -609,14 +688,16 @@ class calculateWalletValue:
             rawCrypto = self.loadCSV()
             self.checkInput(rawCrypto)
             if self.provider == 'cg':
-                rawCrypto = self.CGcalcValue()
+                self.CGcalcValue()
             if self.provider == 'cmc':
-                rawCrypto = self.CMCcalcValue()
+                self.CMCcalcValue()
             if self.invalid_sym:
                 self.showInvalidSymbol()
 
             crypto = self.handleDataPlt()
             self.genPlt(crypto)
+            if self.settings['kucoin_enable_autobalance']: 
+                self.autobalance_portfolio()
 
 # 
 # See value of your crypto/total wallet over time
@@ -749,6 +830,7 @@ class walletBalanceReport:
                 self.data['date'].append(lastDatePlus1h)
 
     def __calcTotalVolatility(self):
+        # TODO FIXME 
         if True:
             lib.printFail(f'{self.__name__} Unimplemented function')
             exit()
@@ -777,8 +859,6 @@ class walletBalanceReport:
                 crypto_data[date] = temp
 
         #print(f'{crypto_data=}')
-        # TODO fix 
-
         # group data using ticker
         volatility = dict()
         for (date, crypto) in crypto_data.items():
@@ -824,9 +904,8 @@ class walletBalanceReport:
         while True:
             self.loadDatetime()
             self.chooseDateRange()
-            # self.volatility = lib.calcAssetVolatility(self.data['total_value'])
+            # self.volatility = lib.calcAssetVolatility(self.data['total_value']) # self.calcTotalVolatility()
             self.volatility = 0
-            #self.calcTotalVolatility()
             self.genPlt()
 
             lib.printAskUserInput('Do you want to show another graph? (y/N)')
