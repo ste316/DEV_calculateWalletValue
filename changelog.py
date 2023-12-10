@@ -14,6 +14,7 @@
 #                              for (symbol, qta, value, liquid_stake) in crypto:
 #                              ValueError: not enough values to unpack (expected 4, got 3)
 # TODO [calculateWalletValue] show the top 3 growers coin related to the day before ?
+# TODO [walletBalanceReport] fix total invested plot line (handle missing record)
 #
 #              others:
 # TODO [kucoin] [cryptoBalanceReport] integrate with kucoin api to update balance and save all orders to calc how much you earned from an asset
@@ -113,3 +114,4 @@
 # DONE [walletBalanceReport] add a line chart with total invested
 # DONE [walletBalanceReport] add increment percentage of a certain period
 # DONE [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
+# DONE [api][cg_api] modify price precision to 6

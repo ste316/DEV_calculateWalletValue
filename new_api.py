@@ -140,7 +140,7 @@ class cg_api_n():
         param = {
             'ids': ','.join(id.values()),
             'vs_currencies': self.currency,
-            'precision': 2
+            'precision': 6
         }
 
         # make request and retrieve a dict from json obj
@@ -451,14 +451,14 @@ class kc_api:
 
     # get Kucoin's prices of currencies list
     # do not use it as price oracle like CoingGecko, as this only refer to Kucoin markets
-    def getFiatPrice(self, currencies: list[str]) -> dict[str, float]:
-        currencies = [c.upper() for c in currencies]
+    def getFiatPrice(self, numerator_assets: list[str]) -> dict[str, float]:
+        numerator_assets = [c.upper() for c in set(numerator_assets)]
         endpoint = '/api/v1/prices'
         url = self.base + endpoint
         param = {
-            'base': self.currency,
-            'currencies': ','.join(currencies)
+            'currencies': ','.join(numerator_assets), # CURRENCIES refer to the asset at numerator -> 1/3
             # comma separated cryptocurrencies to be converted into fiat, e.g.: BTC,ETH
+            'base': self.currency # BASE refer to the asset at denominator 1/3 <-
         }
 
         res = get(url, params=param)
@@ -467,9 +467,9 @@ class kc_api:
         if res.status_code == 200 and body['code'] == '200000':
             data: dict = body['data']
 
-            if len(data) != len(currencies) and len(data) > 0:
+            if len(data) != len(numerator_assets) and len(data) > 0:
                 # NOT all fine, NOT all good broda
-                missing = set(currencies)-set(data.keys())
+                missing = set(numerator_assets)-set(data.keys())
                 lib.printFail(f'Kucoin: unable to retrieve all fiat prices, missing: [{len(missing)}] {missing}')
             elif len(data) == 0:
                 print(body)
