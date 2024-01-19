@@ -2,11 +2,11 @@
 #
 #                           TODOs
 #              urgent: 
-# TODO portfolio_pct.json field permit ',' to aggregate some asset in pct
-# TODO modify the read me to explain that this repo is dedicated to development 
 # TODO DOING [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
-#                     prompt a recap of the upcoming trades before execute'em
+#                     TODO prompt a recap of the upcoming trades before execute'em
 #                     The order amount must exceed 0.1 USDT
+#                     TODO portfolio_pct.json field permit ',' to aggregate some asset in pct
+# TODO modify the read me to explain that this repo is dedicated to development 
 # TODO [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
 # TODO [calculateWalletValue] change self.wallet data struct to DataFrame, 
 #                             also on cryptoBalanceReport and walletBalanceReport?
