@@ -1,11 +1,13 @@
 # the order of TODOs matter, the top one are the most important or urgent
 #
 #                           TODOs
-#              urgent:  
+#              urgent: 
+# TODO portfolio_pct.json field permit ',' to aggregate some asset in pct
+# TODO modify the read me to explain that this repo is dedicated to development 
 # TODO DOING [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
 #                     prompt a recap of the upcoming trades before execute'em
+#                     The order amount must exceed 0.1 USDT
 # TODO [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
-#                           TODO create function to aggregate more symbols and create function wrappers for each keyword (e.g. stables)
 # TODO [calculateWalletValue] change self.wallet data struct to DataFrame, 
 #                             also on cryptoBalanceReport and walletBalanceReport?
 # TODO ? change walletValue format to csv ? 
@@ -115,3 +117,7 @@
 # DONE [walletBalanceReport] add increment percentage of a certain period
 # DONE [calculateWalletValue] add boolean option in settings.json to aggregate stable coins in genPlt()
 # DONE [api][cg_api] modify price precision to 6
+# DONE [calculateWalletValue] fix liquid stake asset, when multiple ls point to the same base asset (e.g. bsol, msol points to sol)
+# DONE [calculateWalletValue] add custom input.csv file path
+# DONE [api][kc_api] add market order
+# DONE [calculateWalletValue] create function to aggregate more symbols

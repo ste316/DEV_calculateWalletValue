@@ -140,7 +140,7 @@ class cg_api_n():
         param = {
             'ids': ','.join(id.values()),
             'vs_currencies': self.currency,
-            'precision': 6
+            'precision': 10
         }
 
         # make request and retrieve a dict from json obj
@@ -265,7 +265,7 @@ class cmc_api:
     # fetch all id, symbol and name from CMC, run only once in a while to update it
     def fetchID(self) -> int:
         url = 'cryptocurrency/map'
-        res = self.session.get(self.baseurl+url)
+        res = self.session.get(self.baseurl+url) # add error handling TODO
         open(self.all_id_path, 'w').write(dumps(res.json(), indent=4))
         lib.printOk('Coin list successfully fetched and saved')
 
@@ -342,6 +342,7 @@ from time import time
 from hmac import new
 from pandas import DataFrame
 from uuid import uuid4
+from kucoin.client import Trade, Market
 
 class kc_api:
     def __init__(self, currency: str) -> None:
@@ -353,19 +354,22 @@ class kc_api:
         self.base = 'https://api.kucoin.com'
         self.error = False
         self.currency = currency.upper()
+        # KC client to make orders
+        self.client = Trade(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
+        # self.kcMarket = Market(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
 
         checklist = [len(x.replace(' ', ''))>0 for x in [self.api_key, self.api_passphrase, self.api_secret] ]
         if not all(checklist): # if any api info is empty -> error
             lib.printFail('Failed to load Kucoin API')
             self.error = True
     
-    def __KucoinApiUp(self) -> bool:
+    def __isKucoinApiUp(self) -> bool:
         endpoint = '/api/v1/timestamp'
         url = self.base + endpoint
         res = get(url)
         body = loads(res)
 
-        if res.status_code == 200 and body['code'] == '200000':return True
+        if res.status_code == 200 and body['code'] == '200000': return True
         return False
 
     def __prepareHeader(self, str_to_sign: str):
@@ -451,14 +455,16 @@ class kc_api:
 
     # get Kucoin's prices of currencies list
     # do not use it as price oracle like CoingGecko, as this only refer to Kucoin markets
-    def getFiatPrice(self, numerator_assets: list[str]) -> dict[str, float]:
+        # numerator_assets: list of asset you wanna get price of e.g. ['btc', 'eth']
+        # currency: |OPTIONAL| pass a valid currency, default to self.currency
+    def getFiatPrice(self, numerator_assets: list[str], currency: str = '') -> dict[str, float]:
         numerator_assets = [c.upper() for c in set(numerator_assets)]
         endpoint = '/api/v1/prices'
         url = self.base + endpoint
         param = {
-            'currencies': ','.join(numerator_assets), # CURRENCIES refer to the asset at numerator -> 1/3
+            'currencies': ','.join(numerator_assets).upper(), # CURRENCIES refer to the asset at numerator -> 1/3
             # comma separated cryptocurrencies to be converted into fiat, e.g.: BTC,ETH
-            'base': self.currency # BASE refer to the asset at denominator 1/3 <-
+            'base': currency if currency != '' else self.currency # BASE refer to the asset at denominator 1/3 <-
         }
 
         res = get(url, params=param)
@@ -483,12 +489,13 @@ class kc_api:
         lib.printFail(f'Kucoin: error while retrieving fiat prices..., {body["msg"]}')
         return {}
 
-    # get market data of symbol e.g. ETH-USDT
-    # if you don't know how symbols are constructed
-    # retrieve it all using kc_api.getSymbols function
+    # get market data of symbol 
+        # symbol e.g. ETH-USDT
+        #       if you don't know how symbols are constructed
+        #       retrieve it all using kc_api.getSymbols function
     def getMarketData(self, symbol: str):
         if '-' not in symbol: 
-            lib.printFail(f'Kucoin: uncorrect symbol {symbol}')
+            lib.printFail(f'Kucoin: incorrect symbol {symbol}')
             return {}
 
         endpoint = '/api/v1/market/stats'
@@ -514,28 +521,20 @@ class kc_api:
         lib.printFail(f'Kucoin: unable to retrieve market data of {symbol}, error: {body["msg"]}')
         return {}
 
-    # https://www.kucoin.com/docs/rest/spot-trading/orders/place-order 
-    # https://www.kucoin.com/docs/rest/spot-trading/orders/place-order-test
-    def placeOrder(self, symbol: str, side: str, size: float): 
-        # FIXME
+    # https://www.kucoin.com/docs/rest/spot-trading/orders/place-order -test
+    def placeOrder(self, symbol: str, side: str, size: float) -> str: 
         if self.error or side.lower() not in ['buy', 'sell']:
             return False
 
-        endpoint = '/api/v1/orders/test' # TODO switch from test endpoint
-        url = self.base+endpoint
-        now = int(time() * 1000)
-        data = {
-            'clientOid': str(uuid4()).replace("-",""),
-            'side': side,
-            'symbol': symbol,
-            'type': 'market',
-            'size': str(size)
-        }
-        #endpoint += f'?clientOid={clientOid}&side={side}&symbol={symbol}&type=market&size={size}'
-        headers = self.__getHeader(endpoint, now, data, True)
-
-        res = post(url, headers=headers, data=data)
-        print(res.status_code, res.json())
+        try:
+            order_id = self.client.create_market_order(symbol, side, size=str(size))
+        except Exception as e :
+            status_code, msg = str(e).split('-')
+            msg = loads(msg)
+            lib.printFail(f'Kucoin: status code: {status_code}, body: {msg["msg"]} KC error: {msg["code"]}')
+            return ''
+        
+        return order_id
 
     def getOrders(self):
         lib.printFail('Unimplemented...')
@@ -609,8 +608,10 @@ def getTicker(ticker: str, start: str, end: str) -> float:
         return 0
 
 if __name__ == '__main__':
-    a = kc_api('EUR')
-    # a.placeOrder('ETH-USDT', 'buy', 0.000100)
-    d = a.getFiatPrice(['usdc'])
-    print(d)
-    #a.getMarketData(5)
+    ''
+    # a = kc_api('EUR')
+    # print(a.placeOrder('ETH-USDT', 'buy', 0.00001))
+    # print(a.placeOrder('ETH-USDT', 'sell', 0.0001))
+    # d = a.getFiatPrice(['usdc'])
+    # print(d)
+    # print(a.getFiatPrice(['BTC','eth']))

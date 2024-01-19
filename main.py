@@ -1,6 +1,6 @@
 from new_api import cg_api_n, cmc_api, kc_api, yahooGetPriceOf, getTicker
 from lib_tool import lib
-from pandas import read_csv, concat
+from pandas import read_csv, concat, DataFrame
 from datetime import datetime
 from numpy import array
 from math import isnan
@@ -102,8 +102,12 @@ class calculateWalletValue:
     # acquire csv data and convert it to a list
     # return a list
     def loadCSV(self) -> list:
+        from os import path
         lib.printWarn('Loading value from input.csv...')
-        df = read_csv('input.csv', parse_dates=True) # pandas.read_csv()
+        input_file = 'input.csv'
+        if self.settings['custom_input'] and path.isfile(self.settings['input_path']):
+            input_file = self.settings['input_path']
+        df = read_csv(input_file, parse_dates=True) # pandas.read_csv()
         if self.settings['retrieve_kc_balance']:        
             df_kc = read_csv('input_kc.csv') # read kucoin asset
             df = concat([df, df_kc], axis=0, ignore_index=True)
@@ -186,7 +190,10 @@ class calculateWalletValue:
 
             if not load and value == 'kucoin': 
                 # when reading csv files <value> refer to label column in csv 
-                self.wallet['kucoin_asset'][symbol] = qta
+                if symbol not in self.wallet['kucoin_asset'].keys():
+                    self.wallet['kucoin_asset'][symbol] = qta
+                else:
+                    self.wallet['kucoin_asset'][symbol] += qta
 
             # add total_invested from csv to self.wallet['total_invested']
             if symbol == 'total_invested':
@@ -244,7 +251,7 @@ class calculateWalletValue:
     # default return: list of symbol filtered by type
     # pass fullItem=True to get a list of [symbol, qta, value, type]
     # pass getQta or getValue to get a list of [symbol, ?qta, ?value]
-    def getAssetFromWallet(self, typeOfAsset: list, fullItem = False, getQta = False, getValue = False) -> list[list] | list[str]:
+    def getAssetFromWallet(self, typeOfAsset: list, fullItem = False, getQta = False, getValue = False) -> list[list]:
         if set(typeOfAsset).intersection(set(['crypto', 'stable', 'fiat', 'all'])): # empty set are evaluated False
             listOfAsset = list()
             isAll = False
@@ -268,6 +275,27 @@ class calculateWalletValue:
 
         else: return []
 
+    def aggregateAssetValue(self, stable: bool = False, crypto: bool = False, fiat: bool = False, custom: list = []):
+        if not isinstance(custom, list): return {}
+
+        data = []
+        if stable: data.extend(self.getAssetFromWallet(['stable'], getValue=True))
+        if crypto: data.extend(self.getAssetFromWallet(['crypto'], getValue=True))
+        if fiat: data.extend(self.getAssetFromWallet(['fiat'], getValue=True))
+        if len(custom) > 0: 
+            for c in custom:
+                if c in self.wallet['asset'].keys() and c not in data:
+                    data.extend([[c, self.wallet['asset'][c][1]]])
+
+        total_value = 0
+        asset = []
+        for symbol, value in data:
+            symbol = symbol.upper()
+            if symbol not in asset: #to avoid duplicate, in case of using custom list
+                total_value += value
+                asset.append(symbol)  
+        return {"asset": asset, 'total_value': total_value}
+        
     # CoinMarketCap calculate the value of crypto and format data to be used in handleDataPlt()
     def CMCcalcValue(self):
         tot = 0.0
@@ -382,16 +410,20 @@ class calculateWalletValue:
             else: 
                 temp = self.getAssetFromWallet(['stable', 'crypto'], getValue=True) # merge into one dict
 
+            # do not show liquid stake asset, 
+            # instead add the relative value to the base asset
             value_to_add = {}
             ls_asset = self.handleLiquidStake()
             for ls, base in ls_asset.items():
                 # add as key: base token relative to its liquid stake
                 # add as value: liquid stake asset's value
-                value_to_add.update({base.upper(): self.wallet['asset'][ls.upper()][1]})
-            
+                # in case base asset is already added, sum it to the previous value
+                if base.upper() in value_to_add.keys(): value_to_add[base.upper()] += self.wallet['asset'][ls.upper()][1]
+                else: value_to_add.update({base.upper(): self.wallet['asset'][ls.upper()][1]})
+
             for symbol, value in temp:
                 if symbol == 'other': continue
-                
+
                 # do not show liquid stake asset, 
                 # instead add the relative value to the base asset
                 if self.settings['convert_liquid_stake'] and symbol.lower() in ls_asset.keys(): continue
@@ -490,7 +522,7 @@ class calculateWalletValue:
             # search 'def getCryptoIndex'
             #self.updateReportJson()
 
-        #show()
+        # show()
 
     # return a list containing all asset in self.wallet
     # the list is composed of other list that are composed so:
@@ -620,7 +652,9 @@ class calculateWalletValue:
                 self.CMCcalcValue()
             if self.invalid_sym:
                 self.showInvalidSymbol()
-
+            
+            df = DataFrame.from_records(self.wallet['asset'])
+            print(df)
             crypto = self.handleDataPlt()
             self.genPlt(crypto)
             if self.settings['kucoin_enable_autobalance']: 
@@ -629,6 +663,13 @@ class calculateWalletValue:
 
 # TODO rewrite(?) and comment this class
 class kucoinAutoBalance:
+
+        # TODO 
+        # - you need to check that the assets to buy/sell are on kucoin ; see calcBuyPower()
+        # - find the best market on kucoin to trade it                  ; see searchBestTradingPairs()
+        # - make the orders                                             ; see kc_api.placeOrder()
+        # - comunicate which assets are not tradable on kucoin          ; 
+    
     def __init__(self, wallet: dict, kucoin_api_obj: kc_api, ls_asset: dict = {}):
         self.wallet = wallet
         self.kc = kucoin_api_obj
@@ -642,6 +683,9 @@ class kucoinAutoBalance:
 
         self.handleLS(ls_asset)
 
+    # add value of Liquid Staked Asset to base Asset and 
+    # delete the LSA from self.portfolio_pct_wallet, self.wallet['asset']
+    #
     # ls_asset has to be from calculateWalletValue.handleLiquidStake()
     def handleLS(self, ls_asset: dict):
         # HANDLE LIQUID STAKED ASSET
@@ -649,8 +693,14 @@ class kucoinAutoBalance:
         value_to_add = {}
         for ls, base in ls_asset.items():
             # add as key: base token relative to its liquid stake
-            # add as value: liquid stake asset's value
-            value_to_add.update({base.upper(): [self.wallet['asset'][ls.upper()][1], ls.upper()]})
+            # add as value: 
+            #     a list containing:
+            #        * liquid stake asset's value
+            #        * liquid stake asset's name
+            if base.upper() in value_to_add.keys(): 
+                value_to_add[base.upper()][0] += self.wallet['asset'][ls.upper()][1]
+                value_to_add[base.upper()][1].append(ls.upper())
+            else: value_to_add.update({base.upper(): [self.wallet['asset'][ls.upper()][1], [ls.upper()]]})
 
         to_delete = []
         for (symb, [_, value, _]) in self.wallet['asset'].items():
@@ -658,29 +708,38 @@ class kucoinAutoBalance:
             self.portfolio_pct_wallet[symb] = round(value / self.wallet['total_crypto_stable'] * 100, 4)
             if symb in value_to_add.keys(): # if symb has a liquid stake version in the porfolio
                 self.portfolio_pct_wallet[symb] += round(value_to_add[symb][0] / self.wallet['total_crypto_stable'] * 100, 4)
-                to_delete.append(value_to_add[symb][1])
+                to_delete.extend(value_to_add[symb][1])
+                self.wallet['asset'][symb][1] += value_to_add[symb][0]
                 # sum its value and delete the ticker
-        for symb in to_delete: del self.portfolio_pct_wallet[symb]
-    
+        for symb in to_delete: del self.portfolio_pct_wallet[symb]; del self.wallet['asset'][symb]
+
     def prepareOrders(self):
         self.orders = {
             self.SELL: [],
             self.BUY: [],
             'currency': self.wallet['currency']
             # key: SELL or BUY
-            # value: {'symbol': 'BTC', 'amount': 5]}
+            # value: {'symbol': 'BTC', 'amount': 0.05]}
             # there is also tot_buy_size as key -> value: 
             #   tot_buy_size is the total amount of self.wallet['currency'] (EUR) that is needed to execute the rebalancing
             #   tot_buy_size takes into account also the sell orders
         }
         self.orders['tot_buy_size'] = 0
-        for symb, expected_pct in self.portfolio_pct_target.items():
-            # expected_value is the expected value of the crypto, following portfolio_pct.json weight 
+
+        for symb in self.wallet['asset'].keys():
+            # default is set to 0% for every asset, 
+            # if symb exist in portfolio_pct_target update it
+            expected_pct = 0
+            if symb in self.portfolio_pct_target:
+                expected_pct = self.portfolio_pct_target[symb]
+            
             expected_value = expected_pct/100*self.wallet["total_crypto_stable"] 
             actual_value = self.portfolio_pct_wallet[symb]/100*self.wallet["total_crypto_stable"]
             # buy_size is the amount to be sold/bought to rebalance the portfolio
             buy_size = round(expected_value-actual_value, 4)
             buy_size_pct = round(buy_size / self.wallet["total_crypto_stable"] * 100, 4) # buy_size in percentage
+            
+            # if order size percentage > minimum rebalance percentage
             if abs(buy_size_pct) >= abs(self.min_rebalance_pct):
                 buy_size = abs(buy_size)
                 if buy_size_pct < 0:
@@ -689,14 +748,15 @@ class kucoinAutoBalance:
                 else:
                     self.orders[self.BUY].append({'symbol': symb, 'amount': buy_size})
                     self.orders['tot_buy_size'] += buy_size
-    
+
     def calcBuyPower(self):
         self.buy_power = {
-            # key: symbol # value: buy power denominated in self.wallet['currency]
-            # there is also key: tot_buy_power
+            # key: symbol 
+            # value: buy power denominated in self.wallet['currency]; there is also the key tot_buy_power
         } 
         self.buy_power['tot_buy_power'] = 0
-        if self.wallet['currency'] in self.kc_info['tradable_counterpart_whitelist']:
+        if self.wallet['currency'] in self.kc_info['tradable_counterpart_whitelist'] \
+            and self.wallet['currency'] in self.wallet['kucoin_asset'].keys(): 
             self.buy_power[self.wallet['currency']] = self.wallet['kucoin_asset'].pop(self.wallet['currency'].lower())
             self.buy_power['tot_buy_power'] += self.buy_power[self.wallet['currency']]
             print(self.buy_power[self.wallet['currency']])
@@ -710,19 +770,30 @@ class kucoinAutoBalance:
             # self.wallet["kucoin_asset"][asset.lower()] contain the quantity 
             # so in case of USDT or USDC, the amount of dollars
             self.buy_power[symbol] = price * self.wallet["kucoin_asset"][symbol.lower()]
+            self.buy_power['tot_buy_power'] += self.buy_power[symbol]
 
-        # TODO 
         # orders refer to all orders needed to rebalance the portfolio, not the orders that you can make on kucoin
-        # - you need to check that the assets to buy/sell are on kucoin, 
-        # - find the best market on kucoin to trade it
-        # - make the orders
-        # - comunicate which assets are not tradable on kucoin
-        print('\nORDERS', self.orders) 
+        print('\nORDERS', self.orders['tot_buy_size']) 
+        for b in self.orders['buy']:
+            print('BUY', b['symbol'], b['amount'], 'eur')
+        print()
+
+        # print(self.wallet['kucoin_asset'])
+        sell_list_available_symbol = []
+        for s in self.orders['sell']:
+            s['symbol'] = s['symbol'].lower()
+            if s['symbol'] in self.wallet['kucoin_asset']:
+                sell_list_available_symbol.append(s['symbol'])
+                available_value = self.kc.getFiatPrice([s['symbol']])[s['symbol'].upper()] * self.wallet['kucoin_asset'][s['symbol']]
+                print('SELL', s['symbol'], s['amount'], 'eur', 'available eur', available_value)
+            else:
+                print('SELL', s['symbol'], s['amount'], 'eur', 'available eur', 0)
+
         print('\nKUCOIN ASSET', self.wallet['kucoin_asset'])
         # buy power is the total amount of self.wallet['currency'] (EUR) available on kucoin
         # tot_buy_size is the total amount of self.wallet['currency'] (EUR) that is needed to execute the rebalancing
         # tot_buy_size takes into account also the sell orders
-        print('\nBUY POWER',self.buy_power, self.orders['tot_buy_size'])
+        print('\nBUY POWER', self.buy_power, self.orders['tot_buy_size'])
 
     def retrieveKCSymbol(self):
         filename = 'kucoin_symbol.csv'
@@ -745,7 +816,7 @@ class kucoinAutoBalance:
                 & (kucoin_symbol_df['enableTrading'] == True)
                 & (kucoin_symbol_df['quoteCurrency'].isin(temp))
             ]
-            print(f'{subset}\n')
+            print(f'SB ----------\n{subset}\n')
             # NEXT STEP
             # check each price subset market pairs
             temp = self.kc.getFiatPrice(subset['baseCurrency'].to_list() + subset['quoteCurrency'].to_list())
@@ -763,7 +834,7 @@ class kucoinAutoBalance:
     def run(self):
         self.prepareOrders()
         self.calcBuyPower()
-        self.searchBestTradingPairs()
+        # self.searchBestTradingPairs()
 
 # 
 # See value of your crypto/total wallet over time
