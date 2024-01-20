@@ -666,13 +666,16 @@ class kucoinAutoBalance:
 
         # TODO 
         # - you need to check that the assets to buy/sell are on kucoin ; see calcBuyPower()
+        # - comunicate which assets are not tradable on kucoin          ; 
+        # 
+        # DONE
         # - find the best market on kucoin to trade it                  ; see searchBestTradingPairs()
         # - make the orders                                             ; see kc_api.placeOrder()
-        # - comunicate which assets are not tradable on kucoin          ; 
     
     def __init__(self, wallet: dict, kucoin_api_obj: kc_api, ls_asset: dict = {}):
         self.wallet = wallet
         self.kc = kucoin_api_obj
+        self.config = lib.getConfig()
         self.portfolio_pct_target = lib.loadJsonFile('portfolio_pct.json')
         self.kc_info = lib.loadJsonFile('kc_info.json') # load necessary files
         self.portfolio_pct_wallet = dict()
@@ -727,9 +730,15 @@ class kucoinAutoBalance:
         self.orders['tot_buy_size'] = 0
 
         for symb in self.wallet['asset'].keys():
+            if symb.lower() in self.config['supportedStablecoin']: continue
+
             # default is set to 0% for every asset, 
             # if symb exist in portfolio_pct_target update it
             expected_pct = 0
+            if symb == self.wallet['currency']: 
+                # skip if symb is the currency (eur, usd, ecc),  
+                # this is an autorebalancer for cryptos
+                continue
             if symb in self.portfolio_pct_target:
                 expected_pct = self.portfolio_pct_target[symb]
             
@@ -755,21 +764,36 @@ class kucoinAutoBalance:
             # value: buy power denominated in self.wallet['currency]; there is also the key tot_buy_power
         } 
         self.buy_power['tot_buy_power'] = 0
+        # if eur is whitelisted to buy assets and it's available on kucoin:
+        # add its value to buy power
         if self.wallet['currency'] in self.kc_info['tradable_counterpart_whitelist'] \
             and self.wallet['currency'] in self.wallet['kucoin_asset'].keys(): 
             self.buy_power[self.wallet['currency']] = self.wallet['kucoin_asset'].pop(self.wallet['currency'].lower())
             self.buy_power['tot_buy_power'] += self.buy_power[self.wallet['currency']]
             print(self.buy_power[self.wallet['currency']])
 
+        self.buy_power['sell_orders'] = 0
+        sell_list_available_symbol = []
+        for s in self.orders['sell']:
+            s['symbol'] = s['symbol'].lower()
+            if s['symbol'] in self.wallet['kucoin_asset']:
+                sell_list_available_symbol.append(s['symbol'])
+                available_value = self.wallet['kucoin_asset'][s['symbol']] * self.kc.getFiatPrice([s['symbol']])[s['symbol'].upper()] 
+                if round(available_value, 2) >= round(s['amount'], 2):
+                    self.buy_power['sell_orders'] += s['amount']
+                    # sell the amount
+                print('SELL', s['symbol'], s['amount'], 'eur', 'available eur', available_value)
+            else:
+                print('SELL', s['symbol'], s['amount'], 'eur', 'available eur', 0)
+
         # asset is the available asset in Kucoin balance that are also in tradable_counterpart_whitelist
         asset = set(self.kc_info['tradable_counterpart_whitelist']).intersection([x.upper() for x in self.wallet['kucoin_asset'].keys()])
         kc_price = self.kc.getFiatPrice(list(asset))
-        del kc_price['currency']
 
+        # calc the actual buy power on kucoin denominated in self.wallet['currency']
+        self.buy_power['tot_buy_power'] += self.buy_power['sell_orders'] # add buy power from sell orders
         for symbol, price in kc_price.items():
-            # self.wallet["kucoin_asset"][asset.lower()] contain the quantity 
-            # so in case of USDT or USDC, the amount of dollars
-            self.buy_power[symbol] = price * self.wallet["kucoin_asset"][symbol.lower()]
+            self.buy_power[symbol] = price * self.wallet["kucoin_asset"][symbol.lower()] 
             self.buy_power['tot_buy_power'] += self.buy_power[symbol]
 
         # orders refer to all orders needed to rebalance the portfolio, not the orders that you can make on kucoin
@@ -777,17 +801,6 @@ class kucoinAutoBalance:
         for b in self.orders['buy']:
             print('BUY', b['symbol'], b['amount'], 'eur')
         print()
-
-        # print(self.wallet['kucoin_asset'])
-        sell_list_available_symbol = []
-        for s in self.orders['sell']:
-            s['symbol'] = s['symbol'].lower()
-            if s['symbol'] in self.wallet['kucoin_asset']:
-                sell_list_available_symbol.append(s['symbol'])
-                available_value = self.kc.getFiatPrice([s['symbol']])[s['symbol'].upper()] * self.wallet['kucoin_asset'][s['symbol']]
-                print('SELL', s['symbol'], s['amount'], 'eur', 'available eur', available_value)
-            else:
-                print('SELL', s['symbol'], s['amount'], 'eur', 'available eur', 0)
 
         print('\nKUCOIN ASSET', self.wallet['kucoin_asset'])
         # buy power is the total amount of self.wallet['currency'] (EUR) available on kucoin
@@ -804,37 +817,71 @@ class kucoinAutoBalance:
                 lib.printFail('Error on retrieving Kucoin symbols...')
                 exit()
 
-    def searchBestTradingPairs(self): # rewrite to automate everything
+    # return a list with the best trading pair for each crypto based on side (buy or sell)
+    # and eventually a list with missing ones
+    def searchBestTradingPairs(self, side): # rewrite to automate everything
+        if side not in [self.BUY, self.SELL]:
+            return []
+        
+        return_list = []
+        missing_list = []
         kucoin_symbol_df = self.retrieveKCSymbol()
-        print(f'\nSELL orders: \n')
-        for order_info in self.orders[self.SELL]:
-            if order_info['symbol'].upper() == 'ATOM': continue
-            print(order_info['symbol'], self.SELL, order_info['amount'], self.wallet['currency'])
+        orders = self.orders[self.BUY] if side == self.BUY else self.orders[self.SELL]
+        for order_info in orders:
+            # if order_info['symbol'].upper() == 'ATOM': continue
+            print(side, order_info['symbol'], 'for', self.wallet['currency'], order_info['amount'])
             temp = [x.upper() for x in self.buy_power.keys()]
             subset = kucoin_symbol_df[ 
-                (kucoin_symbol_df['baseCurrency'] == order_info['symbol'])
+                (kucoin_symbol_df['baseCurrency'] == order_info['symbol'].upper())
                 & (kucoin_symbol_df['enableTrading'] == True)
                 & (kucoin_symbol_df['quoteCurrency'].isin(temp))
             ]
-            print(f'SB ----------\n{subset}\n')
-            # NEXT STEP
-            # check each price subset market pairs
+            if len(subset) == 0: # coin not found, skipping
+                missing_list.append(order_info['symbol'])
+                continue
+            
+            num_symbol = order_info['symbol'].upper()
+            if len(subset) == 1: # 1 coin found
+                return_list.append(f'{num_symbol}-{subset["quoteCurrency"].iloc[0]}')
+                continue
+            print(subset)
+
+            # calc each price subset market pairs
             temp = self.kc.getFiatPrice(subset['baseCurrency'].to_list() + subset['quoteCurrency'].to_list())
-            print(temp)
-            print('usdc', temp['SOL'] / temp['USDC'])
-            print('usdt', temp['SOL'] / temp['USDT']) 
+
+            pair_prices = dict()
+            for den_symbol, price in temp.items():
+                if den_symbol == num_symbol: continue
+                pair_prices[f'{num_symbol}-{den_symbol}'] = temp[num_symbol] / price
+
             # get conversion rate, evaluate them to execute the most convenient trade
             # most of the time the rate will be very similar,
             # if not this is a great deal
 
-            # NEXT STEP
-            # calc the most convenient
-            # immediatly execute the order 
+            # calc the most convenient, sorting based on value 
+            pair_prices = {k: v for k, v in sorted(pair_prices.items(), key=lambda item: item[1])} 
+            # search for the minimum price
+            if side == self.BUY: return_list.append(list(pair_prices.keys())[0]) 
+            # search for the maximum price
+            if side == self.SELL: return_list.append(list(pair_prices.keys())[-1]) 
+ 
+        return return_list, missing_list
+
+    # if side == buy , size must be denominated in quotecurrency e.g. USDC
+    # if side == sell, size must be denominated in basecurrency e.g. SOL
+    def marketOrder(self, pair, side, size):
+        orderid = self.kc.placeOrder(pair, side, size)
+        if len(orderid) > 0:
+            return True
+        return False
 
     def run(self):
         self.prepareOrders()
         self.calcBuyPower()
-        # self.searchBestTradingPairs()
+        a = self.searchBestTradingPairs(side=self.BUY)
+        print(a)        
+        a = self.searchBestTradingPairs(side=self.SELL)
+        print(a)
 
 # 
 # See value of your crypto/total wallet over time
