@@ -531,7 +531,7 @@ class kc_api:
             else: #    'sell'
                 order_id = self.client.create_market_order(symbol, side, size=str(size))
         except Exception as e :
-            status_code, msg = str(e).split('-')
+            status_code, msg = str(e).split('-', 1)
             msg = loads(msg)
             lib.printFail(f'Kucoin: symbol: {symbol} {side} size: {size} {symbol.split("-")[1] if side=="buy" else symbol.split("-")[0]} status code: {status_code}, body: {msg["msg"]} KC error: {msg["code"]}')
             return ''

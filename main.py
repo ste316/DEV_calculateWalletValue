@@ -665,12 +665,12 @@ class calculateWalletValue:
 class kucoinAutoBalance:
 
         # TODO 
-        # - you need to check that the assets to buy/sell are on kucoin ; see calcBuyPower()
         # - comunicate which assets are not tradable on kucoin          ; 
         # 
         # DONE
         # - find the best market on kucoin to trade it                  ; see searchBestTradingPairs()
         # - make the orders                                             ; see kc_api.placeOrder()
+        # - you need to check that the assets to buy/sell are on kucoin ; see calcBuyPower()
     
     def __init__(self, wallet: dict, kucoin_api_obj: kc_api, ls_asset: dict = {}):
         self.wallet = wallet
@@ -751,8 +751,9 @@ class kucoinAutoBalance:
             # buy_size is the amount to be sold/bought to rebalance the portfolio
             buy_size = round(expected_value-actual_value, 10)
             buy_size_pct = round(buy_size / self.wallet["total_crypto_stable"] * 100, 10) # buy_size in percentage
-            
+
             # if order size percentage > minimum rebalance percentage
+            # print(symb, buy_size_pct, self.min_rebalance_pct)
             if abs(buy_size_pct) >= abs(self.min_rebalance_pct):
                 buy_size = abs(buy_size)
                 if buy_size_pct < 0:
@@ -925,10 +926,10 @@ class kucoinAutoBalance:
             lib.printFail(f'Cannot BUY {symbol.upper()} on Kucoin, no trading pair available!')
         
         for symbol, (pair, _) in available_pairs.items():
-            # TODO check if it is necessary a pre swap, otherwise skip
             quote_asset_needed = self.getQuoteCurrency(pair)
             quote_asset_available = sorted(self.buy_power['normal'])[-1] # the most liquid available to trade
-            print(quote_asset_needed, quote_asset_available)
+            # if you already got the liquidity skip to the next one
+            if quote_asset_needed == quote_asset_available: continue
             amount = self.orders[self.BUY][symbol] * self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]
             res = self.marketOrder(f'{quote_asset_needed}-{quote_asset_available}', self.BUY, round(amount, 2))
             if res:
@@ -942,7 +943,6 @@ class kucoinAutoBalance:
     # given searchBestTradingPairs result, 
     # execute orders accordingly to self.price_asset2buy prices
     def executeBuyOrders(self):
-        # handle 'a', communicate which asset cannot be bought on KC
         available_pairs = self.prepareBuyOrders() # orders unable to execute on KC
 
         for symbol, amount in self.orders[self.BUY].items():
@@ -997,9 +997,9 @@ class kucoinAutoBalance:
     def run(self):
         self.loadOrders()
         self.calcBuyPower()
-        self.executeSellOrders(); print('ORDERS not executed', self.error)
-        # err2 = self.executeBuyOrders(); print('BUY ORDER not executed', err2)
-        
+        self.executeSellOrders()
+        self.executeBuyOrders()
+        print('ORDERS not executed', self.error)
         # after execute everything
         # go back to calcWallet to update walletValue.json
         # 
