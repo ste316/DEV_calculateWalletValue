@@ -110,7 +110,7 @@ class calculateWalletValue:
         from os.path import isfile
         lib.printWarn('Loading value from input.csv...')
         input_file = f'input.csv'
-        if self.settings['custom_input'] and isfile(self.settings['input_path']):
+        if self.settings['input_custom'] and isfile(self.settings['input_path']):
             input_file = self.settings['input_path']
         df = read_csv(input_file, parse_dates=True) # pandas.read_csv()
         if self.settings['retrieve_kc_balance']:        

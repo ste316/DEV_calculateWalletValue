@@ -2,14 +2,12 @@
 #
 #                           TODOs
 #              urgent: 
-# TODO DOING [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
-#                     TODO prompt a recap of the upcoming trades before execute'em
-#                     The order amount must exceed 0.1 USDT
-#                     TODO portfolio_pct.json field permit ',' to aggregate some asset in pct
-# TODO modify the read me to explain that this repo is dedicated to development 
+# TODO [repo] modify the read me to explain that this repo is dedicated to development 
+# TODO [repo] create gitbook guide, explain all configurations
+# TODO [kucoin] show which coin need to be sold / bought
+# TODO [kucoin] add support for LSA to --ca --json command             
+# TODO [kucoin] portfolio_pct.json field permit ',' to aggregate some asset in pct
 # TODO [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
-# TODO [calculateWalletValue] change self.wallet data struct to DataFrame, 
-#                             also on cryptoBalanceReport and walletBalanceReport?
 # TODO ? change walletValue format to csv ? 
 # TODO [calculateWalletValue] rewrite liquid stake support and include liquid stake True|False on walletValue.json
 #                              File "d:\crypto\calculate_wallet_value\main.py", line 160, in checkInput
@@ -121,3 +119,4 @@
 # DONE [calculateWalletValue] add custom input.csv file path
 # DONE [api][kc_api] add market order
 # DONE [calculateWalletValue] create function to aggregate more symbols
+# DONE [kucoin] [calculateWalletValue] set percentage weight for each asset to auto adjust, sell and buy to rebalance autonomously
