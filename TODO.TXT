@@ -1,0 +1,4 @@
+TODO check api cg, cmc, kc and rebalancer for file path changes
+
+TODO run every command and test every possible settings to find bugs
+TODO add support for LSA to --json command

@@ -1,7 +1,6 @@
 from json import load, loads, decoder, dumps
 from datetime import datetime, timedelta
-from os import environ, path, getcwd, mkdir
-from platform import system
+from os import environ, path, getcwd, mkdir, name
 from pandas import DataFrame
 from numpy import log
 from numpy import sqrt
@@ -16,9 +15,13 @@ class lib:
     WELCOME_BLUE = '\033[94m'
     ASK_USER_INPUT_PURPLE = '\033[95m'
 
-    bool_term_program = False # minor changes
-    if 'TERM_PROGRAM' in environ.keys():
-        bool_term_program = True
+    # affect log visualization: colors
+    bool_term_program = False 
+    if 'TERM_PROGRAM' in environ.keys(): bool_term_program = True
+    
+    # if os.name == windows use \\ as dir separator
+    dir_sep = '/'
+    if name == 'nt': dir_sep = '\\'
 
     @staticmethod
     def logConsole(text: str, color: str, end: str):
@@ -64,11 +67,11 @@ class lib:
 
     @staticmethod
     def getSettings() -> dict:
-        return lib.loadJsonFile('settings.json')
+        return lib.loadJsonFile(f'{getcwd()}{lib.dir_sep}settings.json')
 
     @staticmethod
     def getConfig() -> dict:
-        return lib.loadJsonFile('config.json')
+        return lib.loadJsonFile(f'{getcwd()}{lib.dir_sep}config.json')
 
     @staticmethod
     def loadJsonFile(file: str) -> dict:
@@ -221,9 +224,8 @@ class lib:
     @staticmethod
     def createCacheFile():
         cwd = getcwd() # current working directory
-        joiner = '\\' if system() == 'Windows' else '/'
-        cg = cwd+joiner+'cached_id_CG.json'
-        cmc = cwd+joiner+'cached_id_CMC.json'
+        cg = cwd+lib.dir_sep+'cached_id_CG.json'
+        cmc = cwd+lib.dir_sep+'cached_id_CMC.json'
 
         lib.createFile(cg, dumps({"fixed": [], "used": {}}, indent=4), False)
         lib.createFile(cmc, '{}', False)
@@ -241,8 +243,7 @@ class lib:
         except FileExistsError: pass
         except FileNotFoundError: lib.printFail('Error on init, check path in settings.json'); return False
         
-        joiner = '\\' if system() == 'Windows' else '/'
-        dirPath = dirPath+joiner
+        dirPath = dirPath+lib.dir_sep
         graficoPath = dirPath+'grafico'
         walletJsonPath = dirPath+'walletValue.json'
         reportJsonPath = dirPath+'report.json'
@@ -279,7 +280,6 @@ class lib:
             lib.printFail(f'Failed to create file: {filepath}')
             lib.printFail(str(e))
             exit()
-
 
 if __name__ == '__main__':
     # print(lib.calcAvgVolatility([1383,1371,1373,1341]), 2)
