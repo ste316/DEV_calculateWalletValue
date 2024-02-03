@@ -4,7 +4,7 @@ from time import sleep
 from requests import get, Response
 from json import dumps, loads
 from os import getcwd
-# from os.path import 
+from os.path import join
 
 class cg_api_n():
     def __init__(self, currency: str) -> None:
@@ -24,9 +24,9 @@ class cg_api_n():
         files = lib.createCacheFile()
         if not files: exit()
 
-        print(getcwd())
-        self.cacheFile = f'{lib.dir_sep}cache{lib.dir_sep}cached_id_CG.json'
-        self.all_id_path = f'{lib.dir_sep}cache{lib.dir_sep}all_id_CG.json'
+        cwd = getcwd()
+        self.cacheFile = join(cwd, 'cache', 'cached_id_CG.json')
+        self.all_id_path = join(cwd, 'cache', 'all_id_CG.json')
         cg_cache = lib.loadJsonFile(self.cacheFile)
         self.fixedSymbol = cg_cache['fixed']
         self.usedSymbol = cg_cache['used']
@@ -47,7 +47,7 @@ class cg_api_n():
         path = 'coins/list'
         coin = get(self.baseurl+path).json()
 
-        with open(f'cache{lib.dir_sep}all_id_CG.json', 'w') as f:
+        with open(self.all_id_path, 'w') as f:
             f.write(dumps(coin, indent=4))
         lib.printOk('Coin list successfully fetched and saved')
 

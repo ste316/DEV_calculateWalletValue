@@ -1,7 +1,8 @@
 from src.lib_tool import lib
-from matplotlib.pyplot import show, xticks, subplots
+from matplotlib.pyplot import title, show, subplots, xticks, tight_layout
 from seaborn import set_style
 from json import loads
+from os.path import join
 
 # 
 # See amount and fiat value of a single crypto over time
@@ -17,7 +18,7 @@ class cryptoBalanceReport:
         self.supportedFiat = self.config['supportedFiat']
         self.supportedStablecoin = self.config['supportedStablecoin']
         lib.printWelcome(f'Welcome to Crypto Balance Report!')
-        self.settings['wallet_path'] = self.settings['path']+lib.dir_sep+'walletValue.json'
+        self.settings['wallet_path'] = join(self.settings['path'], 'walletValue.json')
         self.cryptos = set()
         self.ticker = []
         self.special_ticker = ['stablecoin']
@@ -138,23 +139,19 @@ class cryptoBalanceReport:
         lib.printWarn(f'Creating chart...')
         # set background [white, dark, whitegrid, darkgrid, ticks]
         set_style('darkgrid') 
+
         # create 2 subplots for amount and value over time
-        fig, ax = subplots(1,2, figsize=(13, 8), tight_layout=True)
-
-        # ax[0] has double x axis with amount on the right and fiat value on the left
-        ax0_left_x = ax[0].twinx()
-        ax[0].plot(self.data['date'], self.data['amount'], 'g-')
-        ax0_left_x.plot(self.data['date'], self.data['fiat'], 'r-')
-        ax[0].set_xlabel('Dates')
-        ax[0].set_ylabel('Amount', color='g')
-        ax0_left_x.set_ylabel('Fiat Value', color='r')
-        ax[0].set_title(f'Amount and fiat value of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=11, weight='bold')
-
-        from pandas import DataFrame
-        # ax[1] has price of the coin based on self.data['fiat'] and self.data['amount']
-        ax[1].plot(self.data['date'], DataFrame(self.data['fiat'])/DataFrame(self.data['amount']))
-        ax[1].set_title(f'Price of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=11, weight='bold')
-
+        fig, ax1 = subplots()
+        # tight_layout()
+        fig.set_size_inches(8, 6)
+        ax2 = ax1.twinx()
+        ax1.plot(self.data['date'], self.data['amount'], 'g-')
+        ax2.plot(self.data['date'], self.data['fiat'], 'r-')
+        ax1.set_xlabel('Dates')
+        ax1.set_ylabel('Amount', color='g')
+        ax2.set_ylabel('Fiat Value', color='r')
+        # add title
+        title(f'Amount and fiat value of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=12, weight='bold')
         # changing the fontsize and rotation of x ticks
         xticks(fontsize=6.5, rotation = 45)
         show()

@@ -67,16 +67,16 @@ class lib:
 
     @staticmethod
     def getSettings() -> dict:
-        return lib.loadJsonFile(f'{getcwd()}{lib.dir_sep}settings.json')
+        return lib.loadJsonFile(f'settings.json')
 
     @staticmethod
     def getConfig() -> dict:
-        return lib.loadJsonFile(f'{getcwd()}{lib.dir_sep}config.json')
+        return lib.loadJsonFile(f'config.json')
 
     @staticmethod
     def loadJsonFile(file: str) -> dict:
         with open(file,'r') as f:
-            if(f.readable):
+            if(f.readable()):
                 return load(f) # json.load settings in a dict
             else: 
                 lib.printFail(f'Error while reading {file}')
@@ -224,9 +224,17 @@ class lib:
     @staticmethod
     def createCacheFile():
         cwd = getcwd() # current working directory
-        cg = cwd+lib.dir_sep+'cached_id_CG.json'
-        cmc = cwd+lib.dir_sep+'cached_id_CMC.json'
+        cachePath = path.join(cwd, 'cache')
 
+        try:
+            if not path.isdir(cachePath): mkdir(cachePath) 
+        except FileExistsError: pass
+        
+        cg = path.join(cachePath, 'cached_id_CG.json')
+        cmc = path.join(cachePath, 'cached_id_CMC.json')
+        cachedLSPath = path.join(cachePath, 'cached_liquid_stake.json')
+        
+        lib.createFile(cachedLSPath, dumps({"asset": []}, indent=4), False)
         lib.createFile(cg, dumps({"fixed": [], "used": {}}, indent=4), False)
         lib.createFile(cmc, '{}', False)
         
@@ -243,10 +251,9 @@ class lib:
         except FileExistsError: pass
         except FileNotFoundError: lib.printFail('Error on init, check path in settings.json'); return False
         
-        dirPath = dirPath+lib.dir_sep
-        graficoPath = dirPath+'grafico'
-        walletJsonPath = dirPath+'walletValue.json'
-        reportJsonPath = dirPath+'report.json'
+        graficoPath = path.join(dirPath, 'grafico') 
+        walletJsonPath = path.join(dirPath, 'walletValue.json')
+        reportJsonPath = path.join(dirPath, 'report.json')
 
         try:
             if not path.isdir(graficoPath): mkdir(graficoPath) 
@@ -278,7 +285,7 @@ class lib:
                 return
         except Exception as e:
             lib.printFail(f'Failed to create file: {filepath}')
-            lib.printFail(str(e))
+            lib.printFail('lib.createFile: '+str(e))
             exit()
 
 if __name__ == '__main__':

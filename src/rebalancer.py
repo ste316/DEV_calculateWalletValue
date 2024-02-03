@@ -197,7 +197,6 @@ class kucoinAutoBalance:
         tradable_asset = set(self.kc_info['tradable_counterpart_whitelist']).intersection([x.upper() for x in self.wallet['kucoin_asset'].keys()])
         # tradable asset is the available asset on Kucoin balance that are also in 'tradable_counterpart_whitelist'
         tradable_asset_kc_price = self.kc.getFiatPrice(list(tradable_asset))
-        print(tradable_asset_kc_price)
         # calc the actual buy power on kucoin denominated in self.wallet['currency']
         isAdded = []
         for symbol, price in tradable_asset_kc_price.items():
@@ -216,12 +215,12 @@ class kucoinAutoBalance:
 
     def retrieveKCSymbol(self):
         filename = 'kucoin_symbol.csv'
-        if exists(filename):
-            return read_csv(filename)
-        else:
+        if not exists(filename):
             if not self.kc.getSymbols():
                 lib.printFail('Error on retrieving Kucoin symbols...')
                 exit()
+        
+        return read_csv(filename)
 
     # return a list with the best trading pair for each crypto based on side (buy or sell)
     # and eventually a list with missing ones

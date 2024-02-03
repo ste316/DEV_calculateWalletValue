@@ -1,5 +1,9 @@
 from src.api_yahoo_f import *
 from src.lib_tool import lib
+from src.api_coin_market import cmc_api
+from src.api_coin_gecko import cg_api_n
+from src.api_kucoin import kc_api
+from src.rebalancer import kucoinAutoBalance
 
 from pandas import read_csv, concat
 from datetime import datetime
@@ -8,6 +12,8 @@ from math import isnan
 from matplotlib.pyplot import figure, pie, legend, title, savefig, show
 from seaborn import set_style
 from json import dumps, loads
+from os.path import join
+from os import getcwd
 
 # 
 # Calculate your wallet value 
@@ -54,21 +60,19 @@ class calculateWalletValue:
         self.settings['grafico_path'], self.settings['wallet_path'], self.settings['report_path'] = files
 
         # create input.csv file
-        lib.createFile(f'..{lib.dir_sep}input.csv', 'symbol,qta,label', False)
+        lib.createFile(f'input.csv', 'symbol,qta,label', False)
 
         # set price provider
         if self.settings['provider'] == 'cg':
             lib.printWarn('Api Provider: CoinGecko')
-            from src.api_coin_gecko import cg_api_n
             self.provider = 'cg'
             self.cg = cg_api_n(self.wallet["currency"])
-            lib.createFile(f'..{lib.dir_sep}cache{lib.dir_sep}all_id_CG.json')
+            lib.createFile(self.cg.all_id_path)
         elif self.settings['provider'] == 'cmc':
             lib.printWarn('Api Provider: CoinMarketCap')
-            from src.api_coin_market import cmc_api
             self.provider = 'cmc'
             self.cmc = cmc_api(self.wallet["currency"], self.settings['CMC_key'])
-            lib.createFile(f'..{lib.dir_sep}cache{lib.dir_sep}all_id_CMC.json')
+            lib.createFile(self.cmc.all_id_path)
         else:
             lib.printFail("Specify a correct price provider")
             exit()
@@ -90,7 +94,6 @@ class calculateWalletValue:
             exit()
         
         if self.settings['retrieve_kc_balance']:
-            from api_kucoin import kc_api
             try:
                 self.kc = kc_api(self.wallet['currency'])
                 if self.kc.error:
@@ -106,12 +109,12 @@ class calculateWalletValue:
     def loadCSV(self) -> list:
         from os.path import isfile
         lib.printWarn('Loading value from input.csv...')
-        input_file = f'..{lib.dir_sep}input.csv'
+        input_file = f'input.csv'
         if self.settings['custom_input'] and isfile(self.settings['input_path']):
             input_file = self.settings['input_path']
         df = read_csv(input_file, parse_dates=True) # pandas.read_csv()
         if self.settings['retrieve_kc_balance']:        
-            df_kc = read_csv(f'..{lib.dir_sep}input_kc.csv') # read kucoin asset
+            df_kc = read_csv(f'input_kc.csv') # read kucoin asset
             df = concat([df, df_kc], axis=0, ignore_index=True)
         return df.values.tolist() # convert dataFrame to list []
 
@@ -375,10 +378,11 @@ class calculateWalletValue:
     # their base token name
     def handleLiquidStake(self) -> dict:
         base_asset = {}
+        cached_liquid_stake = join(getcwd(), 'cache', 'cached_liquid_stake.json')
         # if enabled in settings.json
         if self.settings['convert_liquid_stake']:
             # load all cached liquid stake asset
-            cached_ls = lib.loadJsonFile(f'..{lib.dir_sep}cache{lib.dir_sep}cached_liquid_stake.json')
+            cached_ls = lib.loadJsonFile(cached_liquid_stake)
             for asset in self.wallet_liquid_stake:
                 if asset in cached_ls["asset"]:
                     # add the base token relative to liquid staked asset
@@ -516,8 +520,9 @@ class calculateWalletValue:
             # when load is enabled it get data from past record from walletValue.json
             # so you do NOT need to save the img and do NOT need to update json file
             if self.settings['save_img']:
-                savefig(f'{self.settings["grafico_path"]}{lib.dir_sep}{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}') #save image
-                lib.printOk(f'Pie chart image successfully saved in {self.settings["grafico_path"]}{lib.dir_sep}{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}')
+                path_ = join(self.settings["grafico_path"], f'{"C_" if self.type == "crypto" else "T_" if self.type == "total" else ""}{filename}')
+                savefig(path_) # save image
+                lib.printOk(f'Pie chart image successfully saved in {path_}')
             self.updateWalletValueJson()
             
             #self.updateReportJson()
@@ -658,6 +663,5 @@ class calculateWalletValue:
             crypto = self.handleDataPlt()
             self.genPlt(crypto)
             if self.settings['kucoin_enable_autobalance']: 
-                from rebalancer import kucoinAutoBalance
                 auto = kucoinAutoBalance(self.wallet, self.kc, self.handleLiquidStake(), True)
                 auto.run()

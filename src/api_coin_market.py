@@ -4,6 +4,8 @@ from json import dumps, loads
 from requests import Session
 from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
 from random import randrange
+from os.path import join
+from os import getcwd
 
 #
 # CoinMarketCap Api
@@ -16,8 +18,9 @@ class cmc_api:
         self.currency = currency
         self.key = api_key
         self.baseurl = f'https://pro-api.coinmarketcap.com/v1/'
-        self.cacheFile = 'cached_id_CMC.json'
-        self.all_id_path = 'all_id_CMC.json'
+        cwd = getcwd()
+        self.cacheFile = join(cwd, 'cache', 'cached_id_CMC.json')
+        self.all_id_path = join(cwd, 'cache', 'all_id_CMC.json')
         # create cache file
         files = lib.createCacheFile()
         if not files: exit()
@@ -92,7 +95,7 @@ class cmc_api:
 
         if len(symbols) > 0: 
             found = 0
-            data = loads(open('all_id_CMC.json', 'r').read())['data'] # once in a while run fetchID() to update it
+            data = loads(open(self.all_id_path, 'r').read())['data'] # once in a while run fetchID() to update it
 
             # check for every symbol in data
             for i in range(len(data)):

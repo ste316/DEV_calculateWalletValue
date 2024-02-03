@@ -75,8 +75,8 @@ class walletBalanceReport:
     #
     def loadDatetime(self) -> None:
         lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
-        lib.printWarn('Do you want to display total invested in line chart?(y/n)')
-        if input().lower() in ['y', 'yes', 'si']:
+        lib.printWarn('Do you want to display total invested in line chart?(Y/n)')
+        if input().lower() in ['y', 'yes', 'si', '']:
             self.include_total_invested = True
         
         with open(self.settings['wallet_path'], 'r') as f:
