@@ -8,6 +8,8 @@ from time import time
 from hmac import new
 from pandas import DataFrame
 from kucoin.client import Trade
+from os.path import join
+from os import getcwd
 
 class kc_api:
     def __init__(self, currency: str) -> None:
@@ -113,7 +115,7 @@ class kc_api:
                         'baseMaxSize', 'quoteMaxSize', 'baseIncrement', 'quoteIncrement',
                         'priceIncrement', 'priceLimitRate', 'isMarginEnabled'])
             
-            df.to_csv('kucoin_symbol.csv', sep=',', index=False)
+            df.to_csv(join(getcwd(), 'cache', 'kucoin_symbol.csv'), sep=',', index=False)
             return True
         
         lib.printFail(f'Kucoin: unable to download symbols error: {body["msg"]}')

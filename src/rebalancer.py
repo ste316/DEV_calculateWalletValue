@@ -2,6 +2,8 @@ from src.api_kucoin import kc_api
 from src.lib_tool import lib
 from pandas import read_csv, DataFrame
 from os.path import exists
+from os.path import join
+from os import getcwd
 
 # DOING rewrite(?) and comment this class
 class kucoinAutoBalance:
@@ -183,7 +185,7 @@ class kucoinAutoBalance:
                 else:
                     self.buy_power['sell_orders'][symbol.upper()] = available_value
                     # FUTURE create the deposit address and show it to deposit it straightaway
-                    lib.printFail(f'REBALANCER: deposit {round(diff, 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
+                    lib.printFail(f'REBALANCER: deposit {round(abs(diff), 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
                     self.error[symbol] = [amount, self.wallet['currency'], self.SELL]
                     to_delete.append(symbol)
             else: 
@@ -213,9 +215,9 @@ class kucoinAutoBalance:
         if self.debug_mode: print('calcBuyPower: total buy size:', self.orders['tot_buy_size'], self.orders['currency']) 
         if self.debug_mode: print('calcBuyPower: buy power', self.buy_power)
 
-    def retrieveKCSymbol(self):
-        filename = 'kucoin_symbol.csv'
-        if not exists(filename):
+    def retrieveKCSymbol(self, force_update: bool = False):
+        filename = join(getcwd(), 'cache','kucoin_symbol.csv')
+        if not exists(filename) or force_update:
             if not self.kc.getSymbols():
                 lib.printFail('Error on retrieving Kucoin symbols...')
                 exit()
@@ -236,7 +238,7 @@ class kucoinAutoBalance:
         
         return_dict = dict()
         missing_list = []
-        kucoin_symbol_df = self.retrieveKCSymbol()
+        kucoin_symbol_df = self.retrieveKCSymbol(force_update=True)
         orders = self.orders[self.BUY] if side == self.BUY else self.orders[self.SELL]
         for symbol, amount in orders.items():
             if self.debug_mode: print(f'searchBestTradingPairs: searching pairs to {(side+"ing").upper()}', symbol, 'for', self.wallet['currency'], round(amount, 2))
@@ -310,15 +312,27 @@ class kucoinAutoBalance:
         for symbol in not_available:
             self.error[symbol] = [self.orders[self.BUY][symbol], self.wallet['currency'], self.BUY]
             del self.orders[self.BUY][symbol]
-            lib.printFail(f'Cannot BUY {symbol.upper()} on Kucoin, no trading pair available!')
+            lib.printFail(f'PREPARE_BUY Cannot BUY {symbol.upper()} on Kucoin, no trading pair available!')
         
+        most_liq_asset = sorted(self.buy_power['normal'])
         for symbol, (pair, _) in available_pairs.items():
             quote_asset_needed = self.getQuoteCurrency(pair)
-            quote_asset_available = sorted(self.buy_power['normal'])[-1] # the most liquid available to trade
-            # if you already got the liquidity skip to the next one
-            if quote_asset_needed == quote_asset_available: continue
-            amount = self.orders[self.BUY][symbol] * self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]
-            res = self.marketOrder(f'{quote_asset_needed}-{quote_asset_available}', self.BUY, round(amount, 2))
+            quote_asset_available = most_liq_asset[0] # the most liquid available to trade
+            amount_asset_needed = self.orders[self.BUY][symbol]
+            amount_asset_available = self.wallet["kucoin_asset"][quote_asset_available.lower()]
+            
+            if quote_asset_needed.lower() == quote_asset_available.lower():
+                # if asset needed is actually available
+                if amount_asset_available < amount_asset_needed:
+                    # if you need more liquidity in the most liquid asset
+                    # swap the second most liquid to the first one(aka the needed one)
+                    quote_asset_available = most_liq_asset[1]
+                    amount_asset_needed -= amount_asset_available
+                else: 
+                    continue # liquidity requirement satisfied, skipping
+            
+            amount = amount_asset_needed * self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]
+            res = self.marketOrder(f'{quote_asset_needed}-{quote_asset_available}', self.BUY, round(amount, 2)) # pontial bug, use precision by looking at pair's precision
             if res:
                 if self.debug_mode: print(f'prepareBuyOrders: swapped {round(amount, 2)} {self.orders["currency"]} worth of {quote_asset_available} to {quote_asset_needed}')
             else:
