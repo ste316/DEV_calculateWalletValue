@@ -1,5 +1,7 @@
 # Calculate Wallet Value is a program to instantly see how your cryptocurrency portfolio is performing.
 
+## Automatic portfolio Rebalancer is currently in beta test and only support Kucoin exchange APIs.
+
 1. ## Prerequisites:
     * [Download a python interpreter](https://www.python.org/downloads/), suggested python version >= 3.9
     * Download all dependencies
