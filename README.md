@@ -15,7 +15,7 @@
         * provider can be "cg" for CoinGecko or "cmc" for CoinMarketCap
         * You can choose between CoinGecko and CoinMarketCap api
             * CoinGecko api is free and you do NOT need any api key, see [plan](https://www.coingecko.com/en/api/pricing) and
-            [limits](https://www.coingecko.com/en/api/documentation)
+            [limits](https://www.coingecko.com/en/api/documentation), *Data provided by CoinGecko*
             * CoinMarketCap it's free too, but you need to [sign in](https://pro.coinmarketcap.com/login/) and get an api key
 
             #### CoinMarketCap is lightning faster and easy to use, but you have less privacy.
