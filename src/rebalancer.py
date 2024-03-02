@@ -351,16 +351,16 @@ class kucoinAutoBalance:
                     amount = ceil(amount_quote_asset_needed / self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]) - self.wallet['kucoin_asset'][quote_asset_needed.lower()]
                     pair = f'{quote_asset_available}-{quote_asset_needed}'
                     if pair not in prepare_order:
-                        prepare_order[pair] = round(amount, 2) # round 2 is a pontial bug, use precision by looking at pair's precision
+                        prepare_order[pair] = amount
                     else:
-                        prepare_order[pair] += round(amount, 2) # round 2 is a pontial bug, use precision by looking at pair's precision
+                        prepare_order[pair] += amount 
             else:
                 self.error[symbol] = [self.orders[self.BUY][symbol], self.wallet['currency'], self.BUY]
                 del self.orders[self.BUY][symbol]
                 lib.printFail(f'PREPARE_BUY: {symbol} cannot be swapped, needed {amount_quote_asset_needed}{self.wallet["currency"]} of {quote_asset_needed}')
 
         for pair, amount in prepare_order.items():
-            res = self.marketOrder(pair, self.SELL ,amount)
+            res = self.marketOrder(pair, self.SELL, round(amount, 2)) # round 2 is a pontial bug, use precision by looking at pair's precision
             if res:
                 available_asset = self.getBaseCurrency(pair)
                 asset_needed = self.getQuoteCurrency(pair)
