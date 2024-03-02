@@ -3,14 +3,14 @@ try:
 except:
     from lib_tool import lib
 from time import time
-from requests import get
+from requests import get, post
 from json import dumps, loads
 from base64 import b64encode
 from hashlib import sha256
 from time import time
 from hmac import new
 from pandas import DataFrame
-from kucoin.client import Trade
+from kucoin.client import Trade, User
 from os.path import join
 from os import getcwd
 
@@ -27,6 +27,7 @@ class kc_api:
         self.currency = currency.upper()
         # KC client to make orders
         self.client = Trade(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
+        self.user = User(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
         # self.kcMarket = Market(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
 
         checklist = [len(x.replace(' ', ''))>0 for x in [self.api_key, self.api_passphrase, self.api_secret] ]
@@ -66,9 +67,19 @@ class kc_api:
         if post:
             header['Content-Type'] = "application/json"
         return header
-    
+
     # retrieve kucoin balance, format and save it in input_kc.csv
+    # if there are any tokens on main account they will be transfered to trade account
     def getBalance(self):
+        def handleCurrency2Transfer(df: DataFrame):
+            currency = df['currency'].to_list()
+            balance = df['balance'].to_list()
+            return {symbol: value for symbol, value in zip(currency, balance) if symbol not in self.symbol_blacklist}
+
+        def transfer2TradingAcc(need_to_transfer: dict):
+            for symbol, amt in need_to_transfer.items():
+                self.user.inner_transfer(currency=symbol, from_payer='main', to_payee='trade', amount=amt)
+        
         if self.error:
             return False
         
@@ -79,28 +90,32 @@ class kc_api:
         body = loads(res.text) # load response body data
         try:
             if res.status_code == 200 or body['code'] != '200000':
-                    df = DataFrame.from_records(body['data'], exclude=['available','holds', 'type', 'id'])
+                df = DataFrame.from_records(body['data'], exclude=['available','holds', 'id'])
+                # assets that are in 'main' account, with balance more than 0
+                # needs to be transfered to 'trading' account, in order to be available for trading
+                need_to_transfer = handleCurrency2Transfer(df[ (df['type'] == 'main') & (df['balance'].values.astype(float) > 0) ])
+                transfer2TradingAcc(need_to_transfer)
 
-                    # rename column, convert qta to float, delete rows with qta <= 0
-                    df.rename({'currency': 'symbol', 'balance': 'qta'}, axis=1, inplace=True)
-                    convert_dict = {'symbol': str, 'qta': float }
-                    df = df.astype(convert_dict)
-                    df = df[df['qta'] > 0]
-                    
-                    # add missing columns to match input.csv columns
-                    df['label'] = 'kucoin'
-                    df['liquid_stake'] = 'no'
+                df.drop(['type'], axis=1, inplace=True)
+                # rename column, convert qta to float, delete rows with qta <= 0
+                df.rename({'currency': 'symbol', 'balance': 'qta'}, axis=1, inplace=True)
+                # filter using the blacklist, can be edit in kc_info.json
+                df = df[~df['symbol'].isin(self.symbol_blacklist)]
+                convert_dict = {'symbol': str, 'qta': float }
+                df = df.astype(convert_dict)
+                df = df[df['qta'] > 0]
+                
+                # add missing columns to match input.csv columns
+                df['label'] = 'kucoin'
+                df['liquid_stake'] = 'no'
+                df['symbol'] = df['symbol'].str.lower()
 
-                    # filter using the blacklist, can be edit in kc_info.json
-                    df = df[~df['symbol'].isin(self.symbol_blacklist)]
-                    df['symbol'] = df['symbol'].str.lower()
-
-                    df.to_csv('input_kc.csv', sep=',', index=False)
-                    return True
+                df.to_csv('input_kc.csv', sep=',', index=False)
+                return True
             else: 
                 raise Exception
-        except Exception:
-            lib.printFail(f'Kucoin: failed to retrieve KC balance, error msg: {body["msg"]}')
+        except Exception as e:
+            lib.printFail(f'Kucoin: failed to retrieve KC balance, error msg: {body["msg"] if "msg" in body else e}')
             return False
 
     # retrieve all tradable pairs
@@ -264,7 +279,9 @@ class kc_api:
     
 if __name__ == '__main__':
     ''
-    # a = kc_api('EUR')
+    # a = kc_api('EUR')
+    # a.getBalance()
+    # a.transfer2TradingAcc()
     # print(a.placeOrder('TIA-USDT', 'buy', 1))
     # print(a.placeOrder('ETH-USDT', 'sell', 0.0001))
     # d = a.getFiatPrice(['usdc'])

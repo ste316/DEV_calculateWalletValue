@@ -2,12 +2,12 @@
 #
 #                           TODOs
 #              urgent: 
+# TODO [all] add typing for crypto, stable and fiat
+# TODO [all] add security 
 # TODO [report] confrontare incremento da inizio anno del portafoglio rispetto a btc o altre crypto
 # TODO [repo] modify the read me to explain that this repo is dedicated to development 
 # TODO [repo] create gitbook guide, explain all configurations
 # TODO [kucoin] show which coin need to be sold / bought
-# TODO [kucoin] add support for LSA to --ca --json command             
-# TODO [kucoin] portfolio_pct.json field permit ',' to aggregate some asset in pct
 # TODO [cryptoBalanceReport] add boolean option in settings.json to aggregate stable coins in genPlt()
 # TODO ? change walletValue format to csv ? 
 # TODO [calculateWalletValue] rewrite liquid stake support and include liquid stake True|False on walletValue.json

@@ -6,3 +6,4 @@ numpy
 argparse
 requests
 yfinance
+kucoin-python

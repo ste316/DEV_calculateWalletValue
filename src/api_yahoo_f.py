@@ -1,4 +1,7 @@
-from src.lib_tool import lib
+try:
+    from src.lib_tool import lib
+except:
+    from lib_tool import lib
 from pandas_datareader import _utils
 from yfinance import download, Ticker
 

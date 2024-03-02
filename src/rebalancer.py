@@ -9,26 +9,27 @@ from pandas import read_csv, DataFrame
 from os.path import exists
 from os.path import join
 from os import getcwd
+from math import ceil
 
 # DOING rewrite(?) and comment this class
 class kucoinAutoBalance:
 
-        # - TODO first define the expected value, second calc the difference between actual and expected value
-        # - DOING comunicate which assets are not tradable on kucoin    
-        # - FIXME quando append coin minuscole cambiare modo
-        # - FIXME fix prepareBuyOrder, prob incorrect status code / msg handling for api kc
-        # - TODO check if there's crypto on funding -> move it on trading 
-        # - TODO check prepareBuyOrder logic, not pre-swap if you already got the right token
-        # - TODO prepareBuyOrder, swap only needed amount
-        # - TODO use isPairValid 
-        # - TODO add security 
-        # - TODO add chron
-        # - TODO report executed ones
-        # 
-        # DONE
-        # - find the best market on kucoin to trade it                  ; see searchBestTradingPairs()
-        # - make the orders                                             ; see kc_api.placeOrder()
-        # - you need to check that the assets to buy/sell are on kucoin ; see calcBuyPower()
+    # - TODO portfolio_pct.json field permit ',' to aggregate some asset in pct
+    # - TODO comunicate which assets are not tradable on kucoin
+    # - TODO add chron
+    # - TODO report executed ones
+    # - FIXME fix prepareBuyOrder, prob incorrect status code / msg handling for api kc (bo errore non facilmente replicabile)
+    # - TODO add support for LSA to --ca --json command             
+    # 
+    # DONE
+    # - find the best market on kucoin to trade it                  ; see searchBestTradingPairs()
+    # - make the orders                                             ; see kc_api.placeOrder()
+    # - you need to check that the assets to buy/sell are on kucoin ; see calcBuyPower()
+    # - first define the expected value, second calc the difference between actual and expected value
+    # - check if there's crypto on funding -> move it on trading 
+    # - use isPairValid 
+    # - check prepareBuyOrder logic, not pre-swap if you already got the right token
+    # - prepareBuyOrder, swap only needed amount
     
     def __init__(self, wallet: dict, kucoin_api_obj: kc_api, ls_asset: dict = {}, debug_mode: bool = False):
         # load variables, files and settings
@@ -102,61 +103,37 @@ class kucoinAutoBalance:
             'tot_buy_power': 0 # total buy power
         } 
         ########################################################################
-        self.handleLS(ls_asset)
+        self.getActualPct()
 
-    # add value of Liquid Staked Asset to base Asset and 
-    # delete the LSA from self.portfolio_pct_wallet, self.wallet['asset']
-    #
-    # ls_asset has to be from calculateWalletValue.handleLiquidStake()
-    def handleLS(self, ls_asset: dict):
-        # HANDLE LIQUID STAKED ASSET
-        # sum their value to the base token and delete the liquid staked asset from portfolio_pct_wallet
-        value_to_add = {}
-        for ls, base in ls_asset.items():
-            # add as key: base token relative to its liquid stake
-            # add as value: 
-            #     a list containing:
-            #        * liquid stake asset's value
-            #        * liquid stake asset's name
-            if base.upper() in value_to_add.keys(): 
-                value_to_add[base.upper()][0] += self.wallet['asset'][ls.upper()][1]
-                value_to_add[base.upper()][1].append(ls.upper())
-            else: value_to_add.update({base.upper(): [self.wallet['asset'][ls.upper()][1], [ls.upper()]]})
-
-        to_delete = []
-        for (symb, [_, value, _]) in self.wallet['asset'].items():
+    # get actual wallet asset percentage
+    def getActualPct(self):
+        for symb, value in self.wallet['asset'].items():
             # calc each asset weight in the portfolio
-            self.portfolio_pct_wallet[symb] = round(value / self.wallet['total_crypto_stable'] * 100, 4)
-            if symb in value_to_add.keys(): # if symb has a liquid stake version in the porfolio
-                self.portfolio_pct_wallet[symb] += round(value_to_add[symb][0] / self.wallet['total_crypto_stable'] * 100, 4)
-                to_delete.extend(value_to_add[symb][1])
-                self.wallet['asset'][symb][1] += value_to_add[symb][0]
-                # sum its value and delete the ticker
-        for symb in to_delete: del self.portfolio_pct_wallet[symb]; del self.wallet['asset'][symb]
+            self.portfolio_pct_wallet[symb] = round(value / self.wallet['total_crypto_stable'] * 100, 4) / 100
 
-    def getExpextedValues(self):
-        print(self.portfolio_pct_target)
+    # get target wallet asset value
+    def getExpextedValues(self) -> dict:
+        expected_value = dict()
+        for symbol, value in self.portfolio_pct_target.items():
+            expected_value[symbol] = value/100 * self.wallet['total_crypto_stable']
+
+        return expected_value
 
     def loadOrders(self):
+        wallet_expected_value = self.getExpextedValues()
         for symb in self.wallet['asset'].keys():
+            # stablecoins are excluded
             if symb.lower() in self.config['supportedStablecoin']: continue
 
-            # default is set to 0% for every asset, 
-            # if symb exist in portfolio_pct_target update it
-            expected_pct = 0
-            if symb == self.wallet['currency']: 
-                # skip if symb is the currency (eur, usd, ecc),  
-                # this is an autorebalancer for cryptos
-                continue
-            if symb in self.portfolio_pct_target:
-                expected_pct = self.portfolio_pct_target[symb]
+            if symb in wallet_expected_value:
+                expected_value = wallet_expected_value[symb]
+            else:
+                expected_value = 0
             
-            expected_value = expected_pct/100*self.wallet["total_crypto_stable"] 
-            actual_value = self.portfolio_pct_wallet[symb]/100*self.wallet["total_crypto_stable"]
+            actual_value = self.portfolio_pct_wallet[symb]*self.wallet["total_crypto_stable"]
             # buy_size is the amount to be sold/bought to rebalance the portfolio
             buy_size = round(expected_value-actual_value, 10)
             buy_size_pct = round(buy_size / self.wallet["total_crypto_stable"] * 100, 10) # buy_size in percentage
-            if symb.lower()=='btc': print(buy_size, expected_value)
 
             # if order size percentage > minimum rebalance percentage
             if abs(buy_size_pct) >= abs(self.min_rebalance_pct):
@@ -168,6 +145,9 @@ class kucoinAutoBalance:
                     self.orders[self.BUY][symb] = buy_size
                     self.orders['tot_buy_size'] += buy_size
 
+    # calc buy power take into account:
+    #   - availlable liquidity on kc (e.g. usdc, usdt)
+    #   - every coin that should be sold
     def calcBuyPower(self):
         # if eur (or wallet['currency']) is whitelisted to buy assets and it's available on kucoin:
         # add its value to buy power
@@ -194,16 +174,22 @@ class kucoinAutoBalance:
                 # is less than 0:
                 #           add available_value on kucoin and
                 #           notify the remaining difference to be deposited / sold
-                if symbol.lower() == 'sol': print(diff, )
+                if symbol.lower() == 'sol': print('sol diff', diff)
                 if diff >= 0:
                     self.buy_power['sell_orders'][symbol.upper()] = amount
                 else:
-                    self.buy_power['sell_orders'][symbol.upper()] = available_value
-                    # FUTURE create the deposit address and show it to deposit it straightaway
-                    # lib.printFail(f'REBALANCER: deposit {round(abs(diff), 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
-                    # self.error[symbol] = [amount, self.wallet['currency'], self.SELL]
-                    # to_delete.append(symbol)
-                    # TODO handle partial sell
+                    if available_value >= 1:
+                        self.buy_power['sell_orders'][symbol.upper()] = available_value
+                        # TODO handle partial sell, comunicate that only a partial has been sold and a remaining need to be deposited
+                    else:
+                        self.error[symbol.upper()] = [amount, self.wallet['currency'], self.SELL]
+                        to_delete.append(symbol)
+                        # FUTURE TODO create the deposit address and show it to deposit straightaway
+                        lib.printFail(f'REBALANCER: deposit {round(abs(diff), 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
+                    
+                # if amount_in_curr <= 1:
+                #    self.error[symbol] = [amount_in_curr, self.wallet['currency'], self.SELL]
+                #    lib.printFail(f'Cannot SELL {symbol} on Kucoin, deposit more liquidity!')
             else: 
                 # asset has 0.0 balance on KC
                 lib.printFail(f'REBALANCER: deposit {round(amount, 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
@@ -328,32 +314,60 @@ class kucoinAutoBalance:
         for symbol in not_available:
             self.error[symbol] = [self.orders[self.BUY][symbol], self.wallet['currency'], self.BUY]
             del self.orders[self.BUY][symbol]
-            lib.printFail(f'PREPARE_BUY Cannot BUY {symbol.upper()} on Kucoin, no trading pair available!')
+            lib.printFail(f'PREPARE_BUY: Cannot BUY {symbol.upper()} on Kucoin, no trading pair available!')
         
         most_liq_asset = sorted(self.buy_power['normal'])
+        prepare_order = dict() # this will contain the order that are needed to prepare the final swap
         for symbol, (pair, _) in available_pairs.items():
             quote_asset_needed = self.getQuoteCurrency(pair)
-            quote_asset_available = most_liq_asset[0] # the most liquid available to trade
-            amount_asset_needed = self.orders[self.BUY][symbol]
-            amount_asset_available = self.wallet["kucoin_asset"][quote_asset_available.lower()]
             
-            if quote_asset_needed.lower() == quote_asset_available.lower():
-                # if asset needed is actually available
-                if amount_asset_available < amount_asset_needed:
-                    # if you need more liquidity in the most liquid asset
-                    # swap the second most liquid to the first one(aka the needed one)
-                    quote_asset_available = most_liq_asset[1]
-                    amount_asset_needed -= amount_asset_available
-                else: 
-                    continue # liquidity requirement satisfied, skipping
-            
-            amount = amount_asset_needed * self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]
-            res = self.marketOrder(f'{quote_asset_needed}-{quote_asset_available}', self.BUY, round(amount, 2)) # pontial bug, use precision by looking at pair's precision
+            if quote_asset_needed in most_liq_asset:
+                amount_quote_asset_needed = self.orders[self.BUY][symbol]
+                amount_quote_asset_available = self.wallet["kucoin_asset"][quote_asset_needed.lower()]
+                
+                if amount_quote_asset_available < amount_quote_asset_needed:
+                    # you need more liquidity
+                    # find a tradable token with enough counter value
+                    quote_asset_available = ''
+                    # get all available without the needed (now we are searching for a token to be swapped to the needed)
+                    rest_of_available = [item for item in most_liq_asset if item != quote_asset_needed]
+                    for avail_asset in rest_of_available:
+                        # need to be tested
+                        # take the amout of a token, multiply it by its value
+                        # compare it to the value needed
+                        avail_liquidity_value = self.wallet['kucoin_asset'][avail_asset.lower()] * self.kc.getFiatPrice([avail_asset], self.wallet['currency'], False)[avail_asset]
+                        if avail_liquidity_value >= amount_quote_asset_needed:
+                            quote_asset_available = avail_asset
+
+                    if quote_asset_available == '':
+                        # if no token were found, this trade can't be made
+                        self.error[symbol] = [self.orders[self.BUY][symbol], self.wallet['currency'], self.BUY]
+                        del self.orders[self.BUY][symbol]
+                        lib.printFail(f'PREPARE_BUY: Cannot buy {symbol.upper()} on Kucoin, there\'s no token with enought liquidity to make the swap')
+                        continue
+                    
+                    # division beacuse the rate retrieved from getFiatPrice are reversed 
+                    # (the price given from quote_asset_available/currency instead of currency/quote_asset_available)
+                    amount = ceil(amount_quote_asset_needed / self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]) - self.wallet['kucoin_asset'][quote_asset_needed.lower()]
+                    pair = f'{quote_asset_available}-{quote_asset_needed}'
+                    if pair not in prepare_order:
+                        prepare_order[pair] = round(amount, 2) # round 2 is a pontial bug, use precision by looking at pair's precision
+                    else:
+                        prepare_order[pair] += round(amount, 2) # round 2 is a pontial bug, use precision by looking at pair's precision
+            else:
+                self.error[symbol] = [self.orders[self.BUY][symbol], self.wallet['currency'], self.BUY]
+                del self.orders[self.BUY][symbol]
+                lib.printFail(f'PREPARE_BUY: {symbol} cannot be swapped, needed {amount_quote_asset_needed}{self.wallet["currency"]} of {quote_asset_needed}')
+
+        for pair, amount in prepare_order.items():
+            res = self.marketOrder(pair, self.SELL ,amount)
             if res:
-                if self.debug_mode: print(f'prepareBuyOrders: swapped {round(amount, 2)} {self.orders["currency"]} worth of {quote_asset_available} to {quote_asset_needed}')
+                available_asset = self.getBaseCurrency(pair)
+                asset_needed = self.getQuoteCurrency(pair)
+                if self.debug_mode: print(f'prepareBuyOrders: swapped {round(amount, 2)} {self.orders["currency"]} worth of {available_asset} to {asset_needed}')
             else:
                 if self.debug_mode: print(f'prepareBuyOrders: {pair} not swapped')
-        
+
         # TODO aggregate buy orders and execute the least number of trades
         return available_pairs
 
@@ -396,8 +410,9 @@ class kucoinAutoBalance:
             if symbol in available_pairs.keys():
                 # transform 10€ in base currency e.g. BTC
                 amount_in_crypto = round(amount_in_curr/self.price_asset2sell[symbol], available_pairs[symbol][1])
+                if amount_in_crypto <= 0: continue
                 if self.debug_mode: print('executeSellOrders:', available_pairs[symbol][0], 'SELLING', amount_in_crypto, symbol) 
-
+                
                 res = self.marketOrder(available_pairs[symbol][0], self.SELL, amount_in_crypto)
                 if not res:
                     self.error[available_pairs[symbol][0]] = [amount_in_curr, self.wallet['currency'], self.SELL]
@@ -411,6 +426,7 @@ class kucoinAutoBalance:
     # if side == sell, size must be denominated in basecurrency e.g. SOL
     def marketOrder(self, pair, side, size):
         if self.isPairValid(pair):
+            orderid = 'ff'
             orderid: str = self.kc.placeOrder(pair, side, size)
             if len(orderid) > 0:
                 return True
@@ -426,6 +442,5 @@ class kucoinAutoBalance:
         # go back to calcWallet to update walletValue.json
  
 if __name__ == '__main__':
-    kc = kucoinAutoBalance(wallet, kc_api('EUR'), ls, True)
-    kc.getExpextedValues()
+    ''
 
