@@ -2,6 +2,7 @@
 #
 #                           TODOs
 #              urgent: 
+# TODO [report] confrontare incremento da inizio anno del portafoglio rispetto a btc o altre crypto
 # TODO [repo] modify the read me to explain that this repo is dedicated to development 
 # TODO [repo] create gitbook guide, explain all configurations
 # TODO [kucoin] show which coin need to be sold / bought

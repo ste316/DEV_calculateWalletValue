@@ -1,5 +1,10 @@
-from src.api_kucoin import kc_api
-from src.lib_tool import lib
+try:
+    from src.api_kucoin import kc_api
+    from src.lib_tool import lib
+except:
+    from api_kucoin import kc_api
+    from lib_tool import lib
+
 from pandas import read_csv, DataFrame
 from os.path import exists
 from os.path import join
@@ -8,8 +13,13 @@ from os import getcwd
 # DOING rewrite(?) and comment this class
 class kucoinAutoBalance:
 
-        # TODO 
-        # - DOING comunicate which assets are not tradable on kucoin    ;
+        # - TODO first define the expected value, second calc the difference between actual and expected value
+        # - DOING comunicate which assets are not tradable on kucoin    
+        # - FIXME quando append coin minuscole cambiare modo
+        # - FIXME fix prepareBuyOrder, prob incorrect status code / msg handling for api kc
+        # - TODO check if there's crypto on funding -> move it on trading 
+        # - TODO check prepareBuyOrder logic, not pre-swap if you already got the right token
+        # - TODO prepareBuyOrder, swap only needed amount
         # - TODO use isPairValid 
         # - TODO add security 
         # - TODO add chron
@@ -124,6 +134,9 @@ class kucoinAutoBalance:
                 # sum its value and delete the ticker
         for symb in to_delete: del self.portfolio_pct_wallet[symb]; del self.wallet['asset'][symb]
 
+    def getExpextedValues(self):
+        print(self.portfolio_pct_target)
+
     def loadOrders(self):
         for symb in self.wallet['asset'].keys():
             if symb.lower() in self.config['supportedStablecoin']: continue
@@ -143,6 +156,7 @@ class kucoinAutoBalance:
             # buy_size is the amount to be sold/bought to rebalance the portfolio
             buy_size = round(expected_value-actual_value, 10)
             buy_size_pct = round(buy_size / self.wallet["total_crypto_stable"] * 100, 10) # buy_size in percentage
+            if symb.lower()=='btc': print(buy_size, expected_value)
 
             # if order size percentage > minimum rebalance percentage
             if abs(buy_size_pct) >= abs(self.min_rebalance_pct):
@@ -180,14 +194,16 @@ class kucoinAutoBalance:
                 # is less than 0:
                 #           add available_value on kucoin and
                 #           notify the remaining difference to be deposited / sold
+                if symbol.lower() == 'sol': print(diff, )
                 if diff >= 0:
                     self.buy_power['sell_orders'][symbol.upper()] = amount
                 else:
                     self.buy_power['sell_orders'][symbol.upper()] = available_value
                     # FUTURE create the deposit address and show it to deposit it straightaway
-                    lib.printFail(f'REBALANCER: deposit {round(abs(diff), 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
-                    self.error[symbol] = [amount, self.wallet['currency'], self.SELL]
-                    to_delete.append(symbol)
+                    # lib.printFail(f'REBALANCER: deposit {round(abs(diff), 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
+                    # self.error[symbol] = [amount, self.wallet['currency'], self.SELL]
+                    # to_delete.append(symbol)
+                    # TODO handle partial sell
             else: 
                 # asset has 0.0 balance on KC
                 lib.printFail(f'REBALANCER: deposit {round(amount, 2)} {self.orders["currency"]} worth of {symbol.upper()} to execute SELL order')
@@ -408,3 +424,8 @@ class kucoinAutoBalance:
         if self.debug_mode: print('ORDERS not executed', self.error) 
         # after execute everything
         # go back to calcWallet to update walletValue.json
+ 
+if __name__ == '__main__':
+    kc = kucoinAutoBalance(wallet, kc_api('EUR'), ls, True)
+    kc.getExpextedValues()
+

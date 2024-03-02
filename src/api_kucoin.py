@@ -1,4 +1,7 @@
-from src.lib_tool import lib
+try:
+    from src.lib_tool import lib
+except:
+    from lib_tool import lib
 from time import time
 from requests import get
 from json import dumps, loads
@@ -201,7 +204,8 @@ class kc_api:
             else: #    'sell'
                 order_id = self.client.create_market_order(symbol, side, size=str(size))
         except Exception as e :
-            status_code, msg = str(e).split('-', 2)
+            temp = str(e).split('-', 2)
+            status_code, msg = temp[0], temp[1]
             msg = loads(msg)
             lib.printFail(f'Kucoin: symbol: {symbol} {side} size: {size} {symbol.split("-")[1] if side=="buy" else symbol.split("-")[0]} status code: {status_code}, body: {msg["msg"]} KC error: {msg["code"]}')
             return ''

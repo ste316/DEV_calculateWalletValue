@@ -663,5 +663,7 @@ class calculateWalletValue:
             crypto = self.handleDataPlt()
             self.genPlt(crypto)
             if self.settings['kucoin_enable_autobalance']: 
+                print(crypto)
+                # TODO cambiare self.wallet in crypto
                 auto = kucoinAutoBalance(self.wallet, self.kc, self.handleLiquidStake(), True)
                 auto.run()
