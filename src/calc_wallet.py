@@ -1,9 +1,17 @@
-from src.api_yahoo_f import *
-from src.lib_tool import lib
-from src.api_coin_market import cmc_api
-from src.api_coin_gecko import cg_api_n
-from src.api_kucoin import kc_api
-from src.rebalancer import kucoinAutoBalance
+try:
+    from src.api_yahoo_f import *
+    from src.lib_tool import lib
+    from src.api_coin_market import cmc_api
+    from src.api_coin_gecko import cg_api_n
+    from src.api_kucoin import kc_api
+    from src.rebalancer import kucoinAutoBalance
+except:
+    from api_yahoo_f import *
+    from lib_tool import lib
+    from api_coin_market import cmc_api
+    from api_coin_gecko import cg_api_n
+    from api_kucoin import kc_api
+    from rebalancer import kucoinAutoBalance
 
 from pandas import read_csv, concat
 from datetime import datetime
@@ -14,6 +22,7 @@ from seaborn import set_style
 from json import dumps, loads
 from os.path import join
 from os import getcwd
+from typing import Tuple
 
 # 
 # Calculate your wallet value 
@@ -399,9 +408,19 @@ class calculateWalletValue:
     #   there are only 2 symbols: crypto and fiat
     #   crypto value is the total sum of cryptos
     #   fiat value is the total sum of fiat and stablecoins converted in self.wallet["currency"]
-    def handleDataPlt(self) -> list:
+
+    # return 2 lists
+    #   first  one is for creating the PLT in this class
+    #   second one is for kucoin_autobalancer in enabled, otherwise empty list
+    def handleDataPlt(self) -> Tuple[list, list]:
         symbol_to_visualize = list()  # [ [symbol, value], ...]
+        kucoin_rebalancer_data = dict() 
+        # kucoin_rebalancer_data is equal to symbol_to_visualize
+        # unless data isnt't aggregated (no aggregate stable, no aggregate low % crypto)
+        # unless it's key value pairs, not list of
         lib.printWarn('Preparing data...')
+
+        ############### CRYPTO HANDLING ###############
         if self.type == 'crypto':
             if self.settings['aggregate_stablecoin']:
                 stable = self.getAssetFromWallet(['stable'], getValue=True)
@@ -426,6 +445,25 @@ class calculateWalletValue:
                 # in case base asset is already added, sum it to the previous value
                 if base.upper() in value_to_add.keys(): value_to_add[base.upper()] += self.wallet['asset'][ls.upper()][1]
                 else: value_to_add.update({base.upper(): self.wallet['asset'][ls.upper()][1]})
+            
+            if self.settings['kucoin_enable_autobalance']:
+                kucoin_rebalancer_data = self.getAssetFromWallet(['stable', 'crypto'], getValue=True)
+
+                # remove debt positions (if any) and 0 value crypto (if any)
+                kucoin_rebalancer_data = {symbol: value for symbol, value in kucoin_rebalancer_data if value > 0}
+                # add Liquid Staked asset values to base asset counting
+                avoid_double_sum = []
+                for symbol, _ in kucoin_rebalancer_data.items():
+                    if symbol.lower() in ls_asset.keys():
+                        base_symbol = ls_asset[symbol.lower()].upper() # e.g. base symbol for stATOM is ATOM, for jitosol is SOL 
+                        # to avoid double sum when a asset has multiple staked version token
+                        # this is necessary beacuse value_to_add compress multiple staked version token's value into 1 accounting
+                        if base_symbol in avoid_double_sum: continue 
+                        avoid_double_sum.append(base_symbol)
+                        kucoin_rebalancer_data[base_symbol] += value_to_add[base_symbol]
+
+                # delete liquid staked asset
+                kucoin_rebalancer_data = {k: v for k, v in kucoin_rebalancer_data.items() if k.lower() not in ls_asset.keys()}
 
             for symbol, value in temp:
                 if symbol == 'other': continue
@@ -449,8 +487,9 @@ class calculateWalletValue:
 
                     symbol_to_visualize.append([symbol, value])
 
-            return symbol_to_visualize
+            return symbol_to_visualize, kucoin_rebalancer_data
         
+        ############### TOTAL HANDLING ###############
         elif self.type == 'total':
             symbol_to_visualize = [
                 ['Crypto', 0.0], ['Fiat', 0.0]
@@ -463,7 +502,7 @@ class calculateWalletValue:
                 else: 
                     # stable and fiat
                     symbol_to_visualize[1][1] += value
-            return symbol_to_visualize
+            return symbol_to_visualize, kucoin_rebalancer_data
         else:
             lib.printFail('Unexpected error on wallet type, choose crypto or total')
             exit()
@@ -529,7 +568,7 @@ class calculateWalletValue:
             # It's useless until, volatility is implemented
             # search 'def getCryptoIndex'
 
-        show()
+        # show()
 
     # return a list containing all asset in self.wallet
     # the list is composed of other list that are composed so:
@@ -660,8 +699,14 @@ class calculateWalletValue:
             if self.invalid_sym:
                 self.showInvalidSymbol()
             
-            crypto = self.handleDataPlt()
+            crypto, wallet_for_kc = self.handleDataPlt()
             self.genPlt(crypto)
             if self.settings['kucoin_enable_autobalance']: 
-                auto = kucoinAutoBalance(self.wallet, self.kc, self.handleLiquidStake(), True)
+                data = {
+                    'kucoin_asset': self.wallet['kucoin_asset'], 
+                    'total_crypto_stable': self.wallet['total_crypto_stable'],  
+                    'currency': self.wallet['currency'],
+                    'asset': wallet_for_kc # custom struct
+                }
+                auto = kucoinAutoBalance(data, self.kc, self.handleLiquidStake(), True)
                 auto.run()

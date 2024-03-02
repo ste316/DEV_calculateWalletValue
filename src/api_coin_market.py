@@ -1,4 +1,7 @@
-from src.lib_tool import lib
+try:
+    from src.lib_tool import lib
+except:
+    from lib_tool import lib
 from time import sleep
 from json import dumps, loads
 from requests import Session

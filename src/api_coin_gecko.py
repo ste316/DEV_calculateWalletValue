@@ -1,4 +1,7 @@
-from src.lib_tool import lib
+try:
+    from src.lib_tool import lib
+except:
+    from lib_tool import lib
 from typing import Any
 from time import sleep
 from requests import get, Response
