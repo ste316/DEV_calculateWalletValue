@@ -14,6 +14,9 @@ from math import ceil
 # DOING rewrite(?) and comment this class
 class kucoinAutoBalance:
 
+    # - TODO prepareBuyOrders: split the function into smaller, more controllable pieces; fix behavior
+    # - TODO log everything to debug later
+    # - TODO check symbol_blacklist also when buy/sell
     # - TODO portfolio_pct.json field permit ',' to aggregate some asset in pct
     # - TODO comunicate which assets are not tradable on kucoin
     # - TODO add chron

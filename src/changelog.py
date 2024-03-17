@@ -2,6 +2,7 @@
 #
 #                           TODOs
 #              urgent: 
+# TODO [kucoin] calculate the profit/loss of a coin, using all the history o a date range
 # TODO [all] add typing for crypto, stable and fiat
 # TODO [all] add security 
 # TODO [report] confrontare incremento da inizio anno del portafoglio rispetto a btc o altre crypto

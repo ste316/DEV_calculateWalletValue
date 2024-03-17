@@ -568,7 +568,7 @@ class calculateWalletValue:
             # It's useless until, volatility is implemented
             # search 'def getCryptoIndex'
 
-        # show()
+        show()
 
     # return a list containing all asset in self.wallet
     # the list is composed of other list that are composed so:
