@@ -16,6 +16,17 @@ from os import getcwd
 
 class kc_api:
     def __init__(self, currency: str) -> None:
+        """Initialize Kucoin API wrapper with authentication and configuration.
+        
+        Loads API credentials from kc_info.json and initializes Trade and User clients.
+        Validates API credentials and sets up base configuration.
+        
+        Args:
+            currency (str): Base currency for price quotes (e.g., 'USD', 'EUR')
+            
+        Attributes:
+            error (bool): True if initialization failed (e.g., missing API credentials)
+        """
         _kc_info = 'kc_info.json'
         self.kc_info = lib.loadJsonFile(_kc_info)
         self.api_key: str = self.kc_info['key']
@@ -36,6 +47,11 @@ class kc_api:
             self.error = True
     
     def __isKucoinApiUp(self) -> bool:
+        """Check if Kucoin API is accessible.
+        
+        Returns:
+            bool: True if API responds with success code, False otherwise
+        """
         endpoint = '/api/v1/timestamp'
         url = self.base + endpoint
         res = get(url)
@@ -45,16 +61,26 @@ class kc_api:
         return False
 
     def __prepareHeader(self, str_to_sign: str):
+        """Prepare authentication signatures for API requests.
+        
+        Creates base64 encoded signatures for both the request and API passphrase.
+        
+        Args:
+            str_to_sign (str): String to be signed for authentication
+            
+        Returns:
+            tuple: (signature, passphrase) - Base64 encoded authentication values
+        """
         signature = b64encode(new(self.api_secret.encode('utf-8'), str_to_sign.encode('utf-8'), sha256).digest())
         passphrase = b64encode(new(self.api_secret.encode('utf-8'), self.api_passphrase.encode('utf-8'), sha256).digest())
         return signature, passphrase
     
-    # gen http header to auth
-    # param:
-    #       endpoint: api route
-    #       now: unix-time in seconds
-    #       post: use post method
     def __getHeader(self, endpoint: str, now: int, json_data: dict = {}, post: bool = False): # see https://www.kucoin.com/docs/basic-info/connection-method/authentication/signing-a-message
+        # gen http header to auth
+        # param:
+        #       endpoint: api route
+        #       now: unix-time in seconds
+        #       post: use post method
         str_to_sign = f'{now}{"GET" if not post else "POST"}{endpoint}{dumps(json_data, separators=(",", ":"), ensure_ascii=False) if post else ""}'
         signature, passphrase = self.__prepareHeader(str_to_sign)
         header = {
@@ -68,9 +94,15 @@ class kc_api:
             header['Content-Type'] = "application/json"
         return header
 
-    # retrieve kucoin balance, format and save it in input_kc.csv
-    # if there are any tokens on main account they will be transfered to trade account
     def getBalance(self):
+        """Retrieve Kucoin balance and save to input_kc.csv.
+        
+        Fetches account balances, transfers any main account assets to trading account,
+        formats data and saves to CSV. Handles blacklisted symbols and filters zero balances.
+        
+        Returns:
+            bool: True if successful, False if error occurred
+        """
         def handleCurrency2Transfer(df: DataFrame):
             currency = df['currency'].to_list()
             balance = df['balance'].to_list()
@@ -118,8 +150,14 @@ class kc_api:
             lib.printFail(f'Kucoin: failed to retrieve KC balance, error msg: {body["msg"] if "msg" in body else e}')
             return False
 
-    # retrieve all tradable pairs
     def getSymbols(self):
+        """Retrieve all tradable pairs from Kucoin.
+        
+        Downloads and saves trading pair information to cache/kucoin_symbol.csv.
+        
+        Returns:
+            bool: True if successful, False if error occurred
+        """
         endpoint = '/api/v2/symbols'
         url = self.base + endpoint
         
@@ -139,11 +177,19 @@ class kc_api:
         lib.printFail(f'Kucoin: unable to download symbols error: {body["msg"]}')
         return False
 
-    # get Kucoin's prices of currencies list
-    # do not use it as price oracle like CoingGecko, as this only refer to Kucoin markets
-        # numerator_assets: list of asset you wanna get price of e.g. ['btc', 'eth']
-        # currency: |OPTIONAL| pass a valid currency, default to self.currency
     def getFiatPrice(self, numerator_assets: list[str], currency: str = '', include_currency: bool = False) -> dict[str, float]:
+        """Get Kucoin's prices for specified assets.
+        
+        Note: Should not be used as price oracle like CoinGecko, as prices are specific to Kucoin markets.
+        
+        Args:
+            numerator_assets (list[str]): List of assets to get prices for (e.g., ['btc', 'eth'])
+            currency (str, optional): Override default currency. Defaults to self.currency.
+            include_currency (bool, optional): Include currency in response. Defaults to False.
+            
+        Returns:
+            dict[str, float]: Asset symbols mapped to their prices
+        """
         numerator_assets = [c.upper() for c in set(numerator_assets)]
         endpoint = '/api/v1/prices'
         url = self.base + endpoint
@@ -174,11 +220,16 @@ class kc_api:
         lib.printFail(f'Kucoin: error while retrieving fiat prices..., {body["msg"]}')
         return {}
 
-    # get market data of symbol 
-        # symbol e.g. ETH-USDT
-        #       if you don't know how symbols are constructed
-        #       retrieve it all using kc_api.getSymbols function 
     def getMarketData(self, symbol: str):
+        """Get market data for a specific trading pair.
+        
+        Args:
+            symbol (str): Trading pair symbol (e.g., 'ETH-USDT')
+            Note: Use getSymbols() to see available trading pairs
+            
+        Returns:
+            dict: Market data including last price and trading volume, empty dict if error
+        """
         if '-' not in symbol: 
             lib.printFail(f'Kucoin: getMarketData: incorrect symbol {symbol}')
             return {}
@@ -206,10 +257,20 @@ class kc_api:
         lib.printFail(f'Kucoin: unable to retrieve market data of {symbol}, error: {body["msg"]}')
         return {}
 
-    # https://www.kucoin.com/docs/rest/spot-trading/orders/place-order -test
-    # if side == buy , size must be denominated in quotecurrency e.g. USDC
-    # if side == sell, size must be denominated in basecurrency e.g. SOL
     def placeOrder(self, symbol: str, side: str, size: float) -> str: 
+        """Place a market order on Kucoin.
+        
+        For buy orders, size must be in quote currency (e.g., USDC)
+        For sell orders, size must be in base currency (e.g., SOL)
+        
+        Args:
+            symbol (str): Trading pair symbol (e.g., 'SOL-USDC')
+            side (str): 'buy' or 'sell'
+            size (float): Order size in appropriate currency
+            
+        Returns:
+            str: Order ID if successful, empty string if failed
+        """
         if self.error or side.lower() not in ['buy', 'sell']:
             return False
 
@@ -228,6 +289,13 @@ class kc_api:
         return order_id
 
     def getOrders(self):
+        """Retrieve order history from Kucoin.
+        
+        Note: Currently unimplemented
+        
+        Raises:
+            SystemExit: Always exits as function is unimplemented
+        """
         lib.printFail('Unimplemented...')
         exit()
 
@@ -278,7 +346,7 @@ class kc_api:
         return orders
     
 if __name__ == '__main__':
-    ''
+    pass
     # a = kc_api('EUR')
     # a.getBalance()
     # a.transfer2TradingAcc()

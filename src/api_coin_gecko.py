@@ -11,17 +11,20 @@ from os.path import join
 
 class cg_api_n():
     def __init__(self, currency: str) -> None:
+        """Initialize CoinGecko API wrapper.
+        
+        Sets up cache files and loads symbol mappings. CoinGecko uses its own IDs 
+        rather than tickers (e.g., 'ethereum' instead of 'ETH'). 
+        Some tickers may have multiple IDs (e.g., {'symbol': 'eth', 'id': ['ethereum', 'ethereum-wormhole']}).
+        
+        Args:
+            currency (str): Currency for price quotes (e.g., 'usd', 'eur')
+            
+        Raises:
+            SystemExit: If cache files cannot be created or accessed
+        """
         self.currency = currency.lower()
         self.baseurl = 'https://api.coingecko.com/api/v3/'
-
-        ''' CoinGecko price oracle do NOT work with ticker(eg. $eth, $btc) but with its own id
-            it may happen that one ticker have multiple id:
-            eg. {'symbol': 'eth', 'id': ['ethereum', 'ethereum-wormhole']}
-            usually id with "-" in it is a wrapped token or similar
-            BUT sometimes isn't the case, so when you encounter that price is incorrect 
-            you may add the right one in cached symbol 
-            To find the right one just ctrl/cmd + F on cached_id_CG.json file
-            and search the right one by looking at name field'''
 
         # create cache file
         files = lib.createCacheFile()
@@ -45,8 +48,12 @@ class cg_api_n():
             lib.printFail(str(e))
             exit()
 
-    # fetch all id, symbol and name from CoinGecko, run only once in a while to update it
-    def fetchID(self) -> None: 
+    def fetchID(self) -> None:
+        """Fetch all coin IDs, symbols and names from CoinGecko.
+        
+        This should only be run occasionally to update the cached list.
+        Saves results to the all_id_CG.json cache file.
+        """
         path = 'coins/list'
         coin = get(self.baseurl+path).json()
 
@@ -54,10 +61,21 @@ class cg_api_n():
             f.write(dumps(coin, indent=4))
         lib.printOk('Coin list successfully fetched and saved')
 
-    # convert 'find' to CoinGecko id
-    # @param find crypto ticker eg. "ETH" "eth"
-    # @return dict eg. {'eth': 'ethereum', }
-    def convertSymbol2ID(self, find: list[str]) -> dict[str: str] | set: 
+    def convertSymbol2ID(self, find: list[str]) -> tuple[dict[str, str], set]:
+        """Convert crypto tickers to CoinGecko IDs.
+        
+        Checks cached mappings first, then searches all_id_CG.json for matches.
+        Handles cases where multiple IDs exist for a symbol using fixed mappings.
+        Updates used symbols cache after conversion.
+        
+        Args:
+            find (list[str]): List of crypto tickers to convert (e.g., ["ETH", "BTC"])
+            
+        Returns:
+            tuple: Contains:
+                - dict: Mapping of symbols to CoinGecko IDs
+                - set: Set of symbols that couldn't be converted
+        """
         res = {'error': False}
         # make all string lower and remove all empty string (including '\n' '\t' ' ')
         find =  [x.lower() for x in find if x.replace(' ', '') != '']
@@ -110,10 +128,12 @@ class cg_api_n():
         self.dumpUsedId()
         return res, checkSet-set(res.keys())
 
-    # dump self.usedSymbol in cached_id_CG.json
-    # note this function read and write cached_id_CG.json file 
-    # BUT 'fixed' obj in NOT modified
     def dumpUsedId(self) -> None:
+        """Save used symbol-to-ID mappings to cache file.
+        
+        Updates the 'used' object in cached_id_CG.json while preserving
+        the 'fixed' mappings object.
+        """
         with open(self.cacheFile, 'r') as f:
             # load 'fixed' and 'used' json object
             temp = loads(f.read())
@@ -126,8 +146,15 @@ class cg_api_n():
         with open(self.cacheFile, 'w') as f:
             f.write(dumps(temp, indent=4))
 
-    # delete item in listToBeDeleted from a dict with str as key and any type of data as value
     def deleteControlItem(self, response: dict[str, Any]) -> dict[str, Any]:
+        """Remove control items from response dictionary.
+        
+        Args:
+            response (dict[str, Any]): Dictionary to clean
+            
+        Returns:
+            dict[str, Any]: Dictionary with control items removed
+        """
         listToBeDeleted = ['error']
         for item in listToBeDeleted:
             if item in response.keys():
@@ -135,7 +162,21 @@ class cg_api_n():
                 del response[item]
         return response
 
-    def getPriceOf(self, find: list[str]) -> dict[str, float]:
+    def getPriceOf(self, find: list[str]) -> tuple[dict[str, float], set, set]:
+        """Get current prices for multiple cryptocurrencies.
+        
+        Converts symbols to IDs, fetches prices from CoinGecko,
+        and handles various error cases.
+        
+        Args:
+            find (list[str]): List of crypto symbols to get prices for
+            
+        Returns:
+            tuple: Contains:
+                - dict: Symbol to price mappings
+                - set: Symbols not found in CoinGecko
+                - set: Symbols found but prices not available
+        """
         path = 'simple/price'
         id, missingCryptoFromConvert = self.convertSymbol2ID(find=find)
         id = self.deleteControlItem(id)
@@ -168,6 +209,21 @@ class cg_api_n():
         return priceToReturn, missingCryptoFromConvert, missingCryptoFromPrice
 
     def makeRequest(self, url: str, param: dict[str, Any]) -> Response:
+        """Make HTTP request to CoinGecko API with retry logic.
+        
+        Handles various error cases including rate limits and server errors.
+        Implements exponential backoff for retries.
+        
+        Args:
+            url (str): API endpoint URL
+            param (dict[str, Any]): Query parameters
+            
+        Returns:
+            Response: API response object
+            
+        Note:
+            Will retry indefinitely on errors, with warnings after 5 failures
+        """
         error_count = 0
         sleep_time = 0
         msg = ''

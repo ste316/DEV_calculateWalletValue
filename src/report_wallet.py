@@ -9,8 +9,21 @@ from json import loads
 # based on previous saved data in walletValue.json
 # 
 class walletBalanceReport:
-    # Initialization variable and general settings
-    def __init__(self, type: str) -> None: 
+    """Generate reports and visualizations for historical wallet balances.
+    
+    Analyzes and visualizes total wallet value over time, supporting both
+    crypto-only and total portfolio views. Uses data from walletValue.json.
+    """
+
+    def __init__(self, type: str) -> None:
+        """Initialize wallet report generator with settings and type.
+        
+        Args:
+            type (str): Report type ('crypto' or 'total')
+            
+        Raises:
+            SystemExit: If invalid report type provided
+        """
         self.settings = lib.getSettings()
         self.config = lib.getConfig()
         self.version = self.config['version']
@@ -35,8 +48,18 @@ class walletBalanceReport:
             lib.printFail('Unexpected error, pass the correct argument, run again with option --help')
             exit()
 
-    # get forex rate based on self.settings["currency"]
     def getForexRate(self, line: dict):
+        """Get forex rate for currency conversion.
+        
+        Handles EUR/USD conversions using Yahoo Finance rates.
+        
+        Args:
+            line (dict): Data line containing currency information
+            
+        Returns:
+            float: Exchange rate if conversion needed
+            False: If no conversion needed or currencies not supported
+        """
         if self.settings["currency"] == 'EUR' and line['currency'] == 'USD':
             # get forex rate using yahoo api
             return yahooGetPriceOf(f'{self.settings["currency"]}{line["currency"]}=X')
@@ -45,8 +68,13 @@ class walletBalanceReport:
         else:
             return False
 
-    # change the dates between which you view the report
     def chooseDateRange(self):
+        """Allow user to select date range for analysis.
+        
+        Prompts for start and end dates, with defaults being first and last
+        recorded dates. Validates that end date is after start date.
+        Updates data arrays to contain only values within selected range.
+        """
         while True:
             lib.printAskUserInput("Choose a date range, enter dates one by one")
             lib.printAskUserInput(f"{lib.FAIL_RED}NOTE!{lib.ENDC} default dates are the first and last recorded date on walletValue.json\nFirst date")
@@ -67,13 +95,17 @@ class walletBalanceReport:
                 break
             else: lib.printFail("Invalid range of date")
 
-    # 
-    # load all DATETIME from json file
-    # to have a complete graph, when the next date is not the following date
-    # add the following date and the value of the last update
-    # similar to cryptoBalanceReport.retrieveDataFromJson
-    #
     def loadDatetime(self) -> None:
+        """Load and process historical wallet values from JSON file.
+        
+        Handles:
+        - Loading appropriate values based on report type
+        - Currency conversions if needed
+        - Filling gaps in time series with previous values
+        - Optional inclusion of total invested amounts
+        
+        Note: Similar to cryptoBalanceReport.retrieveDataFromJson
+        """
         lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
         lib.printWarn('Do you want to display total invested in line chart?(Y/n)')
         if input().lower() in ['y', 'yes', 'si', '']:
@@ -135,6 +167,13 @@ class walletBalanceReport:
                 self.data['date'].append(lastDatePlus1h)
 
     def __calcTotalVolatility(self):
+        """Calculate total portfolio volatility.
+        
+        TODO: Currently unimplemented
+        
+        Raises:
+            SystemExit: Always exits as function is unimplemented
+        """
         # TODO FIXME 
         if True:
             lib.printFail(f'{self.__name__} Unimplemented function')
@@ -188,8 +227,19 @@ class walletBalanceReport:
 
         print(volatility, vol)
 
-    # create PLT
     def genPlt(self):
+        """Generate and display visualization of wallet value over time.
+        
+        Creates line chart showing:
+        - Total wallet value over time (red line)
+        - Optional total invested amount (if enabled)
+        
+        Includes:
+        - Title with wallet type and date range
+        - Performance metrics
+        - Volatility percentage
+        - Currency information
+        """
         lib.printWarn(f'Creating chart...')
         # set background [white, dark, whitegrid, darkgrid, ticks]
         set_style('darkgrid') 
@@ -206,6 +256,15 @@ class walletBalanceReport:
         show()
 
     def run(self) -> None:
+        """Main execution loop for wallet report generation.
+        
+        Workflow:
+        1. Load historical data
+        2. Get date range from user
+        3. Calculate volatility
+        4. Generate visualization
+        5. Optionally repeat with different type/date range
+        """
         while True:
             self.loadDatetime()
             self.chooseDateRange()

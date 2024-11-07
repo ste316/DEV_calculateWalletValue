@@ -202,6 +202,11 @@ class kucoinAutoBalance:
         for symbol in to_delete: del self.orders[self.SELL][symbol.upper()]
 
         tradable_asset = set(self.kc_info['tradable_counterpart_whitelist']).intersection([x.upper() for x in self.wallet['kucoin_asset'].keys()])
+        if len(tradable_asset) == 0:
+            # no tradable asset
+            # if you request getFiatPrice with an empty list, it will return all symbols, also the ones you do not have in the account
+            return
+
         # tradable asset is the available asset on Kucoin balance that are also in 'tradable_counterpart_whitelist'
         tradable_asset_kc_price = self.kc.getFiatPrice(list(tradable_asset))
         # calc the actual buy power on kucoin denominated in self.wallet['currency']

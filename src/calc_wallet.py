@@ -35,6 +35,13 @@ from typing import Tuple
 class calculateWalletValue:
     # Initialization variable and general settings
     def __init__(self, type_: str, load = False, privacy = False) -> None:
+        """Initialize the wallet calculator with general settings and configurations.
+        
+        Args:
+            type_ (str): Type of wallet calculation ('crypto' or 'total')
+            load (bool, optional): Option to load data from JSON. Defaults to False.
+            privacy (bool, optional): Enable privacy mode to hide total values. Defaults to False.
+        """
         self.settings = lib.getSettings()
         self.config = lib.getConfig()
         self.invalid_sym = []
@@ -113,9 +120,15 @@ class calculateWalletValue:
                 self.settings['retrieve_kc_balance'] = False
                 lib.printFail(f'Failed to update Kucoin balance, reason: {e}')
 
-    # acquire csv data and convert it to a list
-    # return a list
     def loadCSV(self) -> list:
+        """Acquire data from input CSV file and convert it to a list.
+        
+        If Kucoin balance retrieval is enabled, also reads from input_kc.csv and concatenates the data.
+        If custom input path is specified in settings.json, it will be used instead of input.csv
+        
+        Returns:
+            list: List of values from the CSV file(s)
+        """
         from os.path import isfile
         lib.printWarn('Loading value from input.csv...')
         input_file = f'input.csv'
@@ -130,6 +143,17 @@ class calculateWalletValue:
     # CoinGecko retrieve price of a single crypto
     # return a float
     def CGgetPriceOf(self, symbol: list[str]) -> dict: 
+        """Retrieve price of crypto symbols from CoinGecko.
+        
+        Args:
+            symbol (list[str]): List of crypto symbols to get prices for
+            
+        Returns:
+            dict: Dictionary of prices with symbols as keys
+            
+        Raises:
+            SystemExit: If incorrect price provider is specified
+        """
         if self.provider == 'cg': # coingecko
             price, missingSet1, missingSet2 = self.cg.getPriceOf(symbol)
             if len(missingSet1) > 0:
@@ -144,6 +168,17 @@ class calculateWalletValue:
     # CoinMarketCap retrieve price of multiple crypto
     # return a dict with symbol as key and price as value
     def CMCgetPriceOf(self, symbol: list) -> dict:
+        """Retrieve price of multiple crypto symbols from CoinMarketCap.
+        
+        Args:
+            symbol (list): List of crypto symbols to get prices for
+            
+        Returns:
+            dict: Dictionary with symbols as keys and prices as values
+            
+        Raises:
+            SystemExit: If incorrect price provider is specified or unable to retrieve prices
+        """
         if self.provider == 'cmc': #CoinMarketCap
             symbol = [x.upper() for x in symbol] 
             temp = self.cmc.getPriceOf(symbol)
@@ -159,25 +194,41 @@ class calculateWalletValue:
         lib.printFail('Unexpected error, incorrect price provider')
         exit()
     
-    # get NCIS (crypto index) price
-    # will be used to compare volatility of portfolio vs volatility of NCIS
     def getCryptoIndex(self) -> float:
+        """Get NCIS (crypto index) price.
+        
+        Used to compare volatility of portfolio vs volatility of NCIS.
+        
+        Returns:
+            float: Current NCIS price
+        """
+        date_format = '%Y-%m-%d'
+        current_date = lib.getCurrentDay(date_format)
         return getTicker(
             ticker="^NCIS", 
-            start=lib.getPreviousDay(lib.getCurrentDay('%Y-%m-%d'), '%Y-%m-%d'), 
-            end=lib.getCurrentDay('%Y-%m-%d')
+            start=lib.getPreviousDay(current_date, date_format), 
+            end=current_date
         )
 
-    # print invalid pairs or incorrect symbol
     def showInvalidSymbol(self) -> None:
+        """Print invalid pairs or incorrect symbols that were encountered."""
         if len(self.invalid_sym) > 0:
             lib.printFail('The following pair(s) cannot be found:')
             for ticker in self.invalid_sym:
                 print(f'\t{ticker}-{self.wallet["currency"]}', end=' ')
             print('')
 
-    # check data and sort assets in crypto, stable and fiat
     def checkInput(self, crypto: list, load: bool = False) -> dict:
+        """Validate and sort input data into crypto, stable and fiat assets.
+        
+        Args:
+            crypto (list): List of crypto data from input CSV
+            load (bool, optional): Whether data is being loaded from saved JSON. Defaults to False.
+            
+        Raises:
+            SystemExit: If input data is empty or invalid
+            ValueError: If symbol or quantity values are invalid
+        """
         lib.printWarn('Validating data...')
         if len(crypto) == 0:
             lib.printFail(f'Input.csv is empty, fill it with your crypto...')
@@ -261,11 +312,18 @@ class calculateWalletValue:
         if err > 0:
             lib.printFail("Check your input.csv file, some value is missing")
 
-    # get assets from self.wallet, specify typeOfAsset('crypto' or 'stable' or 'fiat' or 'all')
-    # default return: list of symbol filtered by type
-    # pass fullItem=True to get a list of [symbol, qta, value, type]
-    # pass getQta or getValue to get a list of [symbol, ?qta, ?value]
     def getAssetFromWallet(self, typeOfAsset: list, fullItem = False, getQta = False, getValue = False) -> list[list]:
+        """Get assets from wallet filtered by type.
+        
+        Args:
+            typeOfAsset (list): List of asset types to filter by ('crypto', 'stable', 'fiat', 'all')
+            fullItem (bool, optional): Return full item details [symbol, qta, value, type]. Defaults to False.
+            getQta (bool, optional): Include quantity in return data. Defaults to False.
+            getValue (bool, optional): Include value in return data. Defaults to False.
+            
+        Returns:
+            list[list]: Filtered list of assets in requested format
+        """
         if set(typeOfAsset).intersection(set(['crypto', 'stable', 'fiat', 'all'])): # empty set are evaluated False
             listOfAsset = list()
             isAll = False
@@ -290,6 +348,17 @@ class calculateWalletValue:
         else: return []
 
     def aggregateAssetValue(self, stable: bool = False, crypto: bool = False, fiat: bool = False, custom: list = []):
+        """Aggregate asset values by type.
+        
+        Args:
+            stable (bool, optional): Include stablecoins. Defaults to False.
+            crypto (bool, optional): Include cryptocurrencies. Defaults to False.
+            fiat (bool, optional): Include fiat currencies. Defaults to False.
+            custom (list, optional): Custom list of assets to include. Defaults to empty list.
+            
+        Returns:
+            dict: Dictionary containing list of assets and their total value
+        """
         if not isinstance(custom, list): return {}
 
         data = []
@@ -310,8 +379,13 @@ class calculateWalletValue:
                 asset.append(symbol)  
         return {"asset": asset, 'total_value': total_value}
         
-    # CoinMarketCap calculate the value of crypto and format data to be used in handleDataPlt()
     def CMCcalcValue(self):
+        """Calculate asset values using CoinMarketCap prices.
+        
+        Retrieves current prices for crypto and stable assets from CoinMarketCap.
+        Calculates fiat values using Yahoo Finance exchange rates.
+        Updates wallet with calculated values and totals.
+        """
         tot = 0.0
         tot_crypto_stable = 0.0
         lib.printWarn('Retriving current price...')
@@ -348,8 +422,13 @@ class calculateWalletValue:
         self.wallet['total_crypto_stable'] = round(tot_crypto_stable, 2)
         self.wallet['date'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # CoinGecko calculate the value of crypto and format data to be used in handleDataPlt()
     def CGcalcValue(self):
+        """Calculate asset values using CoinGecko prices.
+        
+        Retrieves current prices for crypto and stable assets from CoinGecko.
+        Calculates fiat values using Yahoo Finance exchange rates.
+        Updates wallet with calculated values and totals.
+        """
         tot = 0.0
         tot_crypto_stable = 0.0
         lib.printWarn('Retriving current price...')
@@ -383,9 +462,12 @@ class calculateWalletValue:
         self.wallet['total_crypto_stable'] = round(tot_crypto_stable, 2)
         self.wallet['date'] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    # return a dict containing liquid staked asset and 
-    # their base token name
     def handleLiquidStake(self) -> dict:
+        """Handle liquid staked assets and their base tokens.
+        
+        Returns:
+            dict: Dictionary mapping liquid staked assets to their base token names
+        """
         base_asset = {}
         cached_liquid_stake = join(getcwd(), 'cache', 'cached_liquid_stake.json')
         # if enabled in settings.json
@@ -399,20 +481,22 @@ class calculateWalletValue:
      
         return base_asset
     
-    # format data to generate PLT
-    # for crypto:
-    #   if value of a certain crypto is <= 2%
-    #   add special symbol 'other' and sum all crypto whose value is <= 2%
-    # 
-    # for total:
-    #   there are only 2 symbols: crypto and fiat
-    #   crypto value is the total sum of cryptos
-    #   fiat value is the total sum of fiat and stablecoins converted in self.wallet["currency"]
-
-    # return 2 lists
-    #   first  one is for creating the PLT in this class
-    #   second one is for kucoin_autobalancer in enabled, otherwise empty list
     def handleDataPlt(self) -> Tuple[list, list]:
+        """Format data for pie chart visualization.
+        
+        For crypto type:
+            - Aggregates crypto values <= 2% into 'other' category
+            - Optionally aggregates stablecoins
+            - Handles liquid staked assets
+            
+        For total type:
+            - Aggregates into just 'Crypto' and 'Fiat' categories
+            
+        Returns:
+            Tuple[list, list]: Tuple containing:
+                - List of [symbol, value] pairs for visualization
+                - List of data for Kucoin rebalancer (if enabled)
+        """
         symbol_to_visualize = list()  # [ [symbol, value], ...]
         kucoin_rebalancer_data = dict() 
         # kucoin_rebalancer_data is equal to symbol_to_visualize
@@ -507,8 +591,16 @@ class calculateWalletValue:
             lib.printFail('Unexpected error on wallet type, choose crypto or total')
             exit()
 
-    # create a pie chart, save it(unless self.load is checked) and show it
-    def genPlt(self, symbol_to_visualize: list, ) -> None:
+    def genPlt(self, symbol_to_visualize: list) -> None:
+        """Create, save and display a pie chart visualization of the wallet.
+        
+        Creates a pie chart showing asset distribution with percentages.
+        Includes total balance, stablecoin percentage, and optional privacy mode.
+        For crypto type with total_invested, shows percentage change.
+        
+        Args:
+            symbol_to_visualize (list): List of [symbol, value] pairs to visualize
+        """
         lib.printWarn('Creating pie chart...')
         mylabels = [] # symbols
         val = [] # value in currency of symbols
@@ -570,18 +662,27 @@ class calculateWalletValue:
 
         show()
 
-    # return a list containing all asset in self.wallet
-    # the list is composed of other list that are composed so:
-    # [symbol, qta, value]
     def getWalletAsList(self) -> list:
+        """Convert wallet data to a list format.
+        
+        Returns:
+            list: List of [symbol, qta, value] for all assets in wallet
+        """
         li = list()
         temp = self.getAssetFromWallet(['all'], getQta=True, getValue=True) # merge dict
         for symbol, qta, value in temp:
             li.append([symbol, qta, value]) # convert dict to list
         return li
     
-    # calculate stablecoin percentage of portfolio
     def getStableCoinPercentage(self) -> float:
+        """Calculate stablecoin percentage of portfolio.
+        
+        Returns:
+            float: Percentage of portfolio value in stablecoins or -1.0 if error
+            
+        Raises:
+            SystemExit: If wallet type is invalid
+        """
         tot_stable = 0
         for _ , value in self.getAssetFromWallet(['stable'], getValue=True):
             tot_stable += value
@@ -595,6 +696,11 @@ class calculateWalletValue:
             return -1.0
 
     def updateReportJson(self):
+        """Update report JSON file with current wallet data.
+        
+        Saves date, currency, and NCIS index value to report file.
+        Prints success/failure message.
+        """
         temp = dumps({
             'date': self.wallet['date'],
             'currency': self.wallet['currency'],
@@ -606,9 +712,17 @@ class calculateWalletValue:
         else:
             lib.printFail(f"Failed to update {self.settings['wallet_path']}")   
 
-    # append the record in walletValue.json
-    # it overwrite the record with the same date of today
     def updateWalletValueJson(self):
+        """Update wallet value JSON file with current wallet state.
+        
+        Saves complete wallet data including:
+        - Date, total values, currency
+        - Price provider used
+        - List of all crypto holdings
+        
+        Overwrites any existing record for the same date.
+        Prints success/failure message.
+        """
         temp = dumps({ # data to be dumped
             'date': self.wallet['date'],
             'total_value': self.wallet['total_value'],
@@ -625,9 +739,16 @@ class calculateWalletValue:
         else:
             lib.printFail(f"Failed to update {self.settings['wallet_path']}")
 
-    # given a past date and json data from walletValue.json file, 
-    # create a pie chart
     def genPltFromJson(self):
+        """Generate pie chart from historical wallet data.
+        
+        Loads historical records from wallet JSON file.
+        Allows user to select a date and visualization type.
+        Creates pie chart visualization of historical wallet state.
+        
+        Raises:
+            SystemExit: On keyboard interrupt
+        """
         lib.printWelcome('Select one of the following date to load data from.')
         record = []
 
@@ -685,8 +806,18 @@ class calculateWalletValue:
 
         self.genPlt(newdict)
 
-    # main 
-    def run(self) -> None: 
+    def run(self) -> None:
+        """Main execution method for wallet calculation and visualization.
+        
+        Either:
+        1. Loads historical data and generates visualization (if load=True)
+        2. Or processes current wallet:
+            - Loads CSV data
+            - Validates input
+            - Calculates values using selected provider
+            - Generates visualization
+            - Optionally runs Kucoin auto-balance
+        """
         if self.load:
             self.genPltFromJson()
         else:

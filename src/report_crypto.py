@@ -1,17 +1,25 @@
 from src.lib_tool import lib
-from matplotlib.pyplot import title, show, subplots, xticks, tight_layout
+from matplotlib.pyplot import title, show, subplots, xticks
 from seaborn import set_style
 from json import loads
 from os.path import join
-
-# 
-# See amount and fiat value of a single crypto over time
-# based on previous saved data in walletValue.json
-# a crypto ticker will be asked as user input
-# 
+ 
 class cryptoBalanceReport:
-    # Initialization variable and general settings
-    def __init__(self) -> None: 
+    """Generate reports and visualizations for historical crypto balances.
+    
+    Analyzes and visualizes amount and fiat value of individual cryptocurrencies
+    over time based on data saved in walletValue.json.
+    """
+
+    def __init__(self) -> None:
+        """Initialize report generator with settings and data structures.
+        
+        Sets up:
+        - Configuration and settings from config files
+        - File paths for data
+        - Data structures for crypto tracking
+        - Lists for dates, amounts, and fiat values
+        """
         self.settings = lib.getSettings()
         self.config = lib.getConfig()
         self.version = self.config['version']
@@ -30,6 +38,11 @@ class cryptoBalanceReport:
 
     # retrieve all cryptos ever recorded in json file
     def retrieveCryptoList(self) -> None:
+        """Retrieve all cryptocurrencies ever recorded in wallet history.
+        
+        Reads walletValue.json and builds sorted list of all unique
+        cryptocurrencies that have appeared in the wallet.
+        """
         with open(self.settings['wallet_path'], 'r') as f:
             for line in f:
                 crypto_list = loads(line)['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
@@ -40,6 +53,14 @@ class cryptoBalanceReport:
 
     # ask a crypto from user input given a list
     def getTickerInput(self) -> None:
+        """Get user selection of cryptocurrency to analyze.
+        
+        Displays numbered list of available cryptocurrencies and
+        prompts user to select one by number.
+        
+        Raises:
+            Exception: If invalid input is provided
+        """
         for (i, r) in enumerate(self.cryptos):
             print(f"[{i}] {r}", end='\n')
         
@@ -64,6 +85,12 @@ class cryptoBalanceReport:
 
     # change the dates between which you view the report
     def chooseDateRange(self):
+        """Allow user to select date range for analysis.
+        
+        Prompts for start and end dates, with defaults being first and last
+        recorded dates. Validates that end date is after start date.
+        Updates data arrays to contain only values within selected range.
+        """
         while True:
             lib.printAskUserInput("Choose a date range, enter dates one by one")
             lib.printAskUserInput(f"{lib.FAIL_RED}NOTE!{lib.ENDC} default dates are the first and last recorded date on walletValue.json\nFirst date")
@@ -89,6 +116,18 @@ class cryptoBalanceReport:
     # fill amounts of all empty day with the last available
     # similar to walletBalanceReport.loadDatetime
     def retrieveDataFromJson(self) -> None:
+        """Load historical data for selected cryptocurrency.
+        
+        Reads walletValue.json to collect:
+        - Amount held
+        - Fiat value
+        - Dates
+        
+        Handles missing data by:
+        - Using previous amount/value for gaps
+        - Setting amount/value to 0 when crypto is not found
+        - Starting data collection from first appearance of crypto
+        """
         lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
         with open(self.settings['wallet_path'], 'r') as file:
             firstI = True # first interaction
@@ -136,6 +175,17 @@ class cryptoBalanceReport:
                     isfound = False
 
     def genPlt(self) -> None:
+        """Generate and display visualization of crypto data.
+        
+        Creates a dual-axis plot showing:
+        - Amount of crypto over time (green line)
+        - Fiat value over time (red line)
+        
+        Includes:
+        - Title with crypto name and date range
+        - Properly formatted date axis
+        - Color-coded value axes
+        """
         lib.printWarn(f'Creating chart...')
         # set background [white, dark, whitegrid, darkgrid, ticks]
         set_style('darkgrid') 
@@ -157,6 +207,16 @@ class cryptoBalanceReport:
         show()
 
     def run(self) -> None:
+        """Main execution loop for report generation.
+        
+        Workflow:
+        1. Get list of available cryptos
+        2. Get user selection
+        3. Load historical data
+        4. Get date range
+        5. Generate visualization
+        6. Optionally repeat for another crypto
+        """
         while True:
             self.retrieveCryptoList()
             self.getTickerInput()

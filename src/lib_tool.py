@@ -4,8 +4,29 @@ from os import environ, path, getcwd, mkdir, name
 from pandas import DataFrame
 from numpy import log
 from numpy import sqrt
+from typing import Union
 
 class lib:
+    """Utility library providing common functionality for file operations, logging, and data handling.
+    
+    Contains static methods for:
+    - Console output with color support
+    - JSON file operations
+    - Date handling and formatting
+    - User input processing
+    - File system operations
+    
+    Attributes:
+        OKGREEN (str): ANSI color code for green text
+        WARNING_YELLOW (str): ANSI color code for yellow text
+        FAIL_RED (str): ANSI color code for red text
+        ENDC (str): ANSI code to reset text color
+        WELCOME_BLUE (str): ANSI color code for blue text
+        ASK_USER_INPUT_PURPLE (str): ANSI color code for purple text
+        bool_term_program (bool): Whether terminal supports ANSI colors
+        dir_sep (str): Directory separator for current OS
+    """
+
     # this color below works only on unixlike shell
     # unsupported OS will use plain text without color
     OKGREEN = '\033[92m'
@@ -25,6 +46,13 @@ class lib:
 
     @staticmethod
     def logConsole(text: str, color: str, end: str):
+        """Print colored text to console if supported, plain text otherwise.
+        
+        Args:
+            text (str): Text to print
+            color (str): ANSI color code
+            end (str): String to append at end (like print's end parameter)
+        """
         if lib.bool_term_program:
             print(f'{color}{text} {lib.ENDC}', end=end)
         else:
@@ -32,26 +60,65 @@ class lib:
 
     @staticmethod
     def printOk(text: str, end = "\n"):
+        """Print success message in green.
+        
+        Args:
+            text (str): Message to print
+            end (str, optional): String to append at end. Defaults to newline.
+        """
         lib.handlePrint(text, color=lib.OKGREEN, symbol="[+]", end=end)
 
     @staticmethod
     def printWarn(text: str, end = "\n"):
+        """Print warning message in yellow.
+        
+        Args:
+            text (str): Message to print
+            end (str, optional): String to append at end. Defaults to newline.
+        """
         lib.handlePrint(text, color=lib.WARNING_YELLOW, symbol="[+]", end=end)
 
     @staticmethod
     def printFail(text: str, end = "\n"):
+        """Print failure/error message in red.
+        
+        Args:
+            text (str): Message to print
+            end (str, optional): String to append at end. Defaults to newline.
+        """
         lib.handlePrint(text, color=lib.FAIL_RED, symbol="[-]", end=end)
 
     @staticmethod
     def printWelcome(text: str, end = "\n"):
+        """Print welcome message in blue with double symbols.
+        
+        Args:
+            text (str): Message to print
+            end (str, optional): String to append at end. Defaults to newline.
+        """
         lib.handlePrint(text, color=lib.WELCOME_BLUE, symbol="[*]", end=end, doubleSymbol=True)
 
     @staticmethod
     def printAskUserInput(text: str, end= "\n"):
+        """Print user input prompt in purple.
+        
+        Args:
+            text (str): Message to print
+            end (str, optional): String to append at end. Defaults to newline.
+        """
         lib.handlePrint(text, color=lib.ASK_USER_INPUT_PURPLE, symbol="[!]", end=end)
 
     @staticmethod
     def handlePrint(text: str, color: str, symbol: str, end = "\n", doubleSymbol = False):
+        """Format and print text with optional symbols and color.
+        
+        Args:
+            text (str): Text to print
+            color (str): ANSI color code
+            symbol (str): Symbol to prepend (e.g., "[+]")
+            end (str, optional): String to append at end. Defaults to newline.
+            doubleSymbol (bool, optional): Whether to add symbol at end too. Defaults to False.
+        """
         temp = lib.formatInput(text)
         for item in temp[0]:
             if lib.ENDC in item:
@@ -60,6 +127,14 @@ class lib:
 
     @staticmethod
     def formatInput(text: str):
+        """Split input text into lines if it contains newlines.
+        
+        Args:
+            text (str): Input text to format
+            
+        Returns:
+            tuple: ([lines], bool) - List of lines and whether text was split
+        """
         if "\n" in text:
             text = text.split('\n') 
             return text, True
@@ -67,14 +142,35 @@ class lib:
 
     @staticmethod
     def getSettings() -> dict:
+        """Load settings from settings.json file.
+        
+        Returns:
+            dict: Settings dictionary
+        """
         return lib.loadJsonFile(f'settings.json')
 
     @staticmethod
     def getConfig() -> dict:
+        """Load configuration from config.json file.
+        
+        Returns:
+            dict: Configuration dictionary
+        """
         return lib.loadJsonFile(f'config.json')
 
     @staticmethod
     def loadJsonFile(file: str) -> dict:
+        """Load and parse JSON file.
+        
+        Args:
+            file (str): Path to JSON file
+            
+        Returns:
+            dict: Parsed JSON content
+            
+        Raises:
+            SystemExit: If file cannot be read
+        """
         with open(file,'r') as f:
             if(f.readable()):
                 return load(f) # json.load settings in a dict
@@ -83,33 +179,87 @@ class lib:
                 exit()
 
     @staticmethod
-    def getNextDay(day: str, format = '%d/%m/%Y') -> datetime: 
+    def getNextDay(day: str, format = '%d/%m/%Y') -> datetime:
+        """Get datetime object for day after given date.
+        
+        Args:
+            day (str): Date string
+            format (str, optional): Date format. Defaults to '%d/%m/%Y'.
+            
+        Returns:
+            datetime: Next day as datetime object
+        """
         return lib.parse_formatDate(day, format) + timedelta(days=1)
     
     @staticmethod
-    def getNextHour(day: str, format = '%d/%m/%Y') -> datetime: 
+    def getNextHour(day: str, format = '%d/%m/%Y') -> datetime:
+        """Get datetime object for hour after given date/time.
+        
+        Args:
+            day (str): Date string
+            format (str, optional): Date format. Defaults to '%d/%m/%Y'.
+            
+        Returns:
+            datetime: Next hour as datetime object
+        """
         return lib.parse_formatDate(day, format) + timedelta(hours=1)
     
     @staticmethod
-    def getPreviousDay(day: str, format = '%d/%m/%Y') -> datetime: 
+    def getPreviousDay(day: str, format = '%d/%m/%Y') -> datetime:
+        """Get datetime object for day before given date.
+        
+        Args:
+            day (str): Date string
+            format (str, optional): Date format. Defaults to '%d/%m/%Y'.
+            
+        Returns:
+            datetime: Previous day as datetime object
+        """
         return lib.parse_formatDate(day, format) - timedelta(days=1)
     
     @staticmethod
     def getCurrentDay(format = '%d/%m/%Y') -> str:
+        """Get current date as formatted string.
+        
+        Args:
+            format (str, optional): Date format. Defaults to '%d/%m/%Y'.
+            
+        Returns:
+            str: Current date string
+        """
         return datetime.today().date().strftime(format)
     
     @staticmethod
     def parse_formatDate(day: str, format = '%d/%m/%Y', splitBy = ' ') -> datetime:
+        """Parse date string into datetime object.
+        
+        Args:
+            day (str): Date string or datetime object
+            format (str, optional): Date format. Defaults to '%d/%m/%Y'.
+            splitBy (str, optional): Split character for date string. Defaults to space.
+            
+        Returns:
+            datetime: Parsed datetime object
+        """
         if type(day) == datetime:
             return day
         return datetime.strptime(day.split(splitBy)[0], format)
 
     @staticmethod
-    # given a list of float return avarage volatility
-    # be carefull of which number you pass as avg_period
-    # avg_period = 1 doesn't have no meaning
-    # avg_period > len(total_value) doesn't have no meaning either 
     def calcAvgVolatility(total_value: list, avg_period: int = 30):
+        """Calculate average volatility over a period.
+        
+        Uses log returns and rolling standard deviation to compute annualized volatility.
+        
+        Args:
+            total_value (list): List of price values
+            avg_period (int, optional): Period for rolling calculation. Defaults to 30.
+                Must be > 1 and < len(total_value)
+            
+        Returns:
+            float: Average annualized volatility
+            None: If avg_period is invalid
+        """
         if avg_period == 1 or avg_period > len(total_value): 
             lib.printFail(f"Specify a correct avg_period when calling {lib.calcAvgVolatility.__name__}")
             return None
@@ -134,6 +284,15 @@ class lib:
 
     @staticmethod
     def isValidDate(date: str, format = '%d/%m/%Y'):
+        """Check if string is a valid date in given format.
+        
+        Args:
+            date (str): Date string to validate
+            format (str, optional): Expected date format. Defaults to '%d/%m/%Y'.
+            
+        Returns:
+            bool: True if valid date, False otherwise
+        """
         try:
             lib.parse_formatDate(date, format)
         except:
@@ -142,6 +301,15 @@ class lib:
 
     @staticmethod
     def getIndexOfDate(dateToFind: str, list: list):
+        """Find index of date in list of dates.
+        
+        Args:
+            dateToFind (str): Date to search for
+            list (list): List of date strings
+            
+        Returns:
+            tuple: (index, found) - Index of date and whether it was found
+        """
         found = False
         index = 0
         for (i, item) in enumerate(list):
@@ -152,6 +320,19 @@ class lib:
 
     @staticmethod
     def getUserInputDate(listOfDate):
+        """Get valid date input from user.
+        
+        Prompts user until valid date is entered or empty input (default) received.
+        
+        Args:
+            listOfDate: List of valid dates
+            
+        Returns:
+            Union[str, int]: 'default' for empty input or index of selected date
+            
+        Raises:
+            SystemExit: On keyboard interrupt
+        """
         while True:
             try:
                 temp = lib.getUserInput().replace(' ', '')
@@ -168,6 +349,14 @@ class lib:
 
     @staticmethod
     def getUserInput() -> str:
+        """Get input from user with keyboard interrupt handling.
+        
+        Returns:
+            str: User input
+            
+        Raises:
+            SystemExit: On keyboard interrupt
+        """
         while True:
             try:
                 return input()
@@ -176,8 +365,19 @@ class lib:
                 exit()
 
     @staticmethod
-    # read json file, update
     def updateJson(file_path: str, date_to_update: str, new_record: str) -> tuple[bool, str]:
+        """Update JSON file with new record at specific date.
+        
+        Handles insertion at beginning, middle, or end based on date order.
+        
+        Args:
+            file_path (str): Path to JSON file
+            date_to_update (str): Date for new record
+            new_record (str): JSON record to insert
+            
+        Returns:
+            tuple: (success, error_content) - Success flag and content on error
+        """
         new_file = ''
         date_to_update = date_to_update.split(':')[0]
         formated_date_to_update = datetime.strptime(date_to_update,  '%d/%m/%Y %H')
@@ -217,12 +417,19 @@ class lib:
             else: return False, new_file # return new_file to eventually retry later
         return True, ''
 
-    # create /cached_id_CG.json and /cached_id_CMC.json
-    # in current working directory (where you run main.py)
-    # return a list of full path of created files if succesfully
-    # False otherwise
     @staticmethod
     def createCacheFile():
+        """Create cache directory and files for ID mappings.
+        
+        Creates:
+        - cached_id_CG.json for CoinGecko
+        - cached_id_CMC.json for CoinMarketCap
+        - cached_liquid_stake.json for liquid staking
+        
+        Returns:
+            tuple: Paths to created CoinGecko and CoinMarketCap cache files
+            False: If creation fails
+        """
         cwd = getcwd() # current working directory
         cachePath = path.join(cwd, 'cache')
 
@@ -240,12 +447,22 @@ class lib:
         
         return cg, cmc
 
-    # create /grafico , /walletValue.json and /report.json
-    # in dirPath passed as argument
-    # return a list of full path of created files/dir if succesfully
-    # False otherwise
     @staticmethod
     def createWorkingFile(dirPath: str):
+        """Create working directory structure and files.
+        
+        Creates:
+        - /grafico directory
+        - walletValue.json
+        - report.json
+        
+        Args:
+            dirPath (str): Base directory path
+            
+        Returns:
+            tuple: Paths to created directory and files
+            False: If creation fails
+        """
         try:
             if not path.isdir(dirPath): mkdir(dirPath) 
         except FileExistsError: pass
@@ -265,12 +482,18 @@ class lib:
 
         return graficoPath, walletJsonPath, reportJsonPath
 
-    # If filepath do not exist on filesystem, create file and write content
-    # If filepath exist on filesystem, 
-    #   write content on filepath created if filepath doesn't contain anything or overide == True  
-    #       
     @staticmethod
     def createFile(filepath: str, content: str = '', overide: bool = False):
+        """Create file with content or update if empty/override allowed.
+        
+        Args:
+            filepath (str): Path to file
+            content (str, optional): Content to write. Defaults to empty.
+            overide (bool, optional): Whether to override existing content. Defaults to False.
+            
+        Raises:
+            SystemExit: If file creation fails
+        """
         try:
             if not path.exists(filepath):
                 with open(filepath, 'w') as f:
