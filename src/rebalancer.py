@@ -224,9 +224,9 @@ class kucoinAutoBalance:
                     if available_value >= 1:
                         self.buy_power.sell_orders[symbol.upper()] = available_value
                         
-                        # TODO handle partial sell, comunicate that only a partial has been sold and a remaining need to be deposited
                         partial_sell = amount - available_value
-                        print(f'{symbol} will be sold for a partial amount of {partial_sell}')
+                        lib.printFail(f'{symbol.upper()} will be sold for a partial amount of {partial_sell}')
+                        self.error.failed_trades[symbol.upper()] = [partial_sell, self.wallet['currency'], self.SELL]
                     else:
                         self.error.failed_trades[symbol.upper()] = [amount, self.wallet['currency'], self.SELL]
                         to_delete.append(symbol)
