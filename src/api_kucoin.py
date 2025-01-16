@@ -168,7 +168,7 @@ class kc_api:
             data = body['data']
             df = DataFrame.from_records(data, 
                 exclude=['market', 'quoteMinSize', 'name',
-                        'baseMaxSize', 'quoteMaxSize', 'baseIncrement', 'quoteIncrement',
+                        'baseMaxSize', 'quoteMaxSize',
                         'priceIncrement', 'priceLimitRate', 'isMarginEnabled'])
             
             df.to_csv(join(getcwd(), 'cache', 'kucoin_symbol.csv'), sep=',', index=False)

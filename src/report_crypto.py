@@ -200,8 +200,20 @@ class cryptoBalanceReport:
         ax1.set_xlabel('Dates')
         ax1.set_ylabel('Amount', color='g')
         ax2.set_ylabel('Fiat Value', color='r')
-        # add title
-        title(f'Amount and fiat value of {self.ticker} in {self.settings["currency"]} from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}', fontsize=12, weight='bold')
+        # Find first non-zero value for percentage calculation
+        start_value = 0
+        for value in self.data['fiat']:
+            if value != 0:
+                start_value = value
+                break
+        end_value = self.data['fiat'][-1]
+        price_change_pct = ((end_value - start_value) / start_value * 100) if start_value != 0 else 0
+        
+        # Modified title with price change
+        title(f'Amount and fiat value of {self.ticker} in {self.settings["currency"]}\n'
+              f'from {self.data["date"][0].strftime("%d %b %Y")} to {self.data["date"][-1].strftime("%d %b %Y")}'
+              f' ({price_change_pct:+.2f}%)', 
+              fontsize=12, weight='bold')
         # changing the fontsize and rotation of x ticks
         xticks(fontsize=6.5, rotation = 45)
         show()

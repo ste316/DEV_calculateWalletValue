@@ -37,13 +37,12 @@ class Error(BaseModel):
 # DOING rewrite(?) and comment this class
 class kucoinAutoBalance:
 
-    # - TODO prepareBuyOrders: split the function into smaller, more controllable pieces; fix behavior
+    # - TODO prepareBuyOrders: split the function into smaller, more controllable pieces
     # - TODO log everything to debug later
     # - TODO portfolio_pct.json field permit ',' to aggregate some asset in pct
     # - TODO comunicate which assets are not tradable on kucoin
     # - TODO add chron
     # - TODO report executed ones
-    # - FIXME fix prepareBuyOrder, prob incorrect status code / msg handling for api kc (bo errore non facilmente replicabile)
     # - TODO add support for LSA to --ca --json load command             
     # 
     # DONE
@@ -56,6 +55,8 @@ class kucoinAutoBalance:
     # - check prepareBuyOrder logic, not pre-swap if you already got the right token
     # - prepareBuyOrder, swap only needed amount
     # - check symbol_blacklist also when buy/sell
+    # - enable to add new tokens
+    # - fix increment for buy/sell sizes
     
     def __init__(self, wallet: dict, kucoin_api_obj: kc_api, ls_asset: dict = {}, debug_mode: bool = False):
         # load variables, files and settings
@@ -135,6 +136,26 @@ class kucoinAutoBalance:
 
     def loadOrders(self):
         wallet_expected_value = self.getExpextedValues()
+        
+        # Find coins that are in wallet_expected_value but not in current wallet
+        new_coins = set(wallet_expected_value.keys()) - set(self.wallet['asset'].keys())
+        
+        # Process new coins first
+        for symb in new_coins:
+            # Skip stablecoins and blacklisted symbols
+            if symb.lower() in self.config['supportedStablecoin'] or \
+               symb.upper() in self.kc_info['symbol_blacklist']: 
+                continue
+            
+            buy_size = wallet_expected_value[symb]
+            buy_size_pct = round(buy_size / self.wallet["total_crypto_stable"] * 100, 10)
+            
+            # if order size percentage > minimum rebalance percentage
+            if abs(buy_size_pct) >= abs(self.min_rebalance_pct):
+                self.orders.buy[symb] = buy_size
+                self.orders.tot_buy_size += buy_size
+
+        # Process existing assets in the wallet
         for symb in self.wallet['asset'].keys():
             # Skip stablecoins and blacklisted symbols
             if symb.lower() in self.config['supportedStablecoin'] or \
@@ -197,13 +218,15 @@ class kucoinAutoBalance:
                 # is less than 0:
                 #           add available_value on kucoin and
                 #           notify the remaining difference to be deposited / sold
-                if symbol.lower() == 'sol': print('sol diff', diff)
                 if diff >= 0:
                     self.buy_power.sell_orders[symbol.upper()] = amount
                 else:
                     if available_value >= 1:
                         self.buy_power.sell_orders[symbol.upper()] = available_value
+                        
                         # TODO handle partial sell, comunicate that only a partial has been sold and a remaining need to be deposited
+                        partial_sell = amount - available_value
+                        print(f'{symbol} will be sold for a partial amount of {partial_sell}')
                     else:
                         self.error.failed_trades[symbol.upper()] = [amount, self.wallet['currency'], self.SELL]
                         to_delete.append(symbol)
@@ -257,11 +280,18 @@ class kucoinAutoBalance:
     # return a list with the best trading pair for each crypto based on side (buy or sell)
     # and eventually a list with missing ones
     def searchBestTradingPairs(self, side): # rewrite to automate everything
-        
+        def getIsSell(side: str) -> bool:
+            return True if side==self.SELL else False
+
         # this function return the pair precision using the order of magnitude of subset['baseMinSize']
-        def getPairPrecision(subset: DataFrame):
+        def getPairPrecision(subset: DataFrame, side: str):
+            if getIsSell(side):
+                increment = subset['baseIncrement'].iloc[0]
+            else:
+                increment = subset['quoteIncrement'].iloc[0]
+            
             from math import log, floor
-            return abs(floor(log(subset['baseMinSize'].iloc[0], 10)))
+            return abs(floor(log(increment, 10)))
 
         if side not in [self.BUY, self.SELL]:
             return [], []
@@ -284,7 +314,7 @@ class kucoinAutoBalance:
             
             num_symbol = symbol.upper()
             if len(subset) == 1: # 1 coin found
-                pair_precision = getPairPrecision(subset)
+                pair_precision = getPairPrecision(subset, side)
                 return_dict[symbol] = (f'{num_symbol}-{subset["quoteCurrency"].iloc[0]}', pair_precision)
                 continue
 
@@ -310,7 +340,7 @@ class kucoinAutoBalance:
             if side == self.SELL: 
                 best_pair = list(pair_prices.keys())[-1]
             
-            pair_precision = getPairPrecision(subset[subset['quoteCurrency'] == best_pair.split('-')[1]])
+            pair_precision = getPairPrecision(subset[subset['quoteCurrency'] == best_pair.split('-')[1]], side)
             return_dict[symbol] = (best_pair, pair_precision )
 
         return return_dict, missing_list
