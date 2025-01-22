@@ -90,16 +90,26 @@ class cg_api_n():
 
         # retrieve all possible id from all_id_CG.json file
         temp = dict()
-        with open(self.all_id_path, 'r') as f:
-            filedata = loads(f.read())
-
-            for crypto in filedata:
-                if crypto['symbol'] in find:
-                    # add if new, append if other possible valid id were found 
-                    if crypto['symbol'] not in temp.keys():
-                        temp[crypto['symbol']] = [crypto['id']]
-                    else:
-                        temp[crypto['symbol']].append(crypto['id'])
+        while True:
+            with open(self.all_id_path, 'r') as f:
+                filedata = loads(f.read())
+                
+                # Check for rate limit error in the file
+                if 'status' in filedata and filedata['status'].get('error_code') == 429:
+                    lib.printWarn('Rate limit error in cached data, retrying after 60 seconds')
+                    sleep(60)
+                    self.fetchID()  # Refetch the data
+                    continue
+                    
+                # If no error, process the data
+                for crypto in filedata:
+                    if crypto['symbol'] in find:
+                        # add if new, append if other possible valid id were found 
+                        if crypto['symbol'] not in temp.keys():
+                            temp[crypto['symbol']] = [crypto['id']]
+                        else:
+                            temp[crypto['symbol']].append(crypto['id'])
+                break  # Exit the loop if data processing is successful
 
         # extract correct id using cached_id_CG.json['fixed'], otherwise print error
         err_count = 0

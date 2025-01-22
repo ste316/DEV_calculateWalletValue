@@ -481,7 +481,7 @@ class calculateWalletValue:
      
         return base_asset
     
-    def handleDataPlt(self) -> Tuple[list, list]:
+    def handleDataPlt(self) -> Tuple[list, dict]:
         """Format data for pie chart visualization.
         
         For crypto type:
@@ -493,92 +493,87 @@ class calculateWalletValue:
             - Aggregates into just 'Crypto' and 'Fiat' categories
             
         Returns:
-            Tuple[list, list]: Tuple containing:
+            Tuple[list, dict]: Tuple containing:
                 - List of [symbol, value] pairs for visualization
-                - List of data for Kucoin rebalancer (if enabled)
+                - Dictionary of data for Kucoin rebalancer (if enabled)
         """
         symbol_to_visualize = list()  # [ [symbol, value], ...]
         kucoin_rebalancer_data = dict() 
-        # kucoin_rebalancer_data is equal to symbol_to_visualize
-        # unless data isnt't aggregated (no aggregate stable, no aggregate low % crypto)
-        # unless it's key value pairs, not list of
         lib.printWarn('Preparing data...')
 
         ############### CRYPTO HANDLING ###############
         if self.type == 'crypto':
+            # Handle stablecoins aggregation
             if self.settings['aggregate_stablecoin']:
                 stable = self.getAssetFromWallet(['stable'], getValue=True)
                 stable_value = 0
-                stable_list = []
                 for symbol, value in stable:
                     stable_value += value
-                    stable_list.append(symbol)  
                 
                 temp = self.getAssetFromWallet(['crypto'], getValue=True)
                 temp.append(['STABLEs', stable_value])
             else: 
-                temp = self.getAssetFromWallet(['stable', 'crypto'], getValue=True) # merge into one dict
+                temp = self.getAssetFromWallet(['stable', 'crypto'], getValue=True)
 
-            # do not show liquid stake asset, 
-            # instead add the relative value to the base asset
+            # Process liquid staking assets first
             value_to_add = {}
             ls_asset = self.handleLiquidStake()
             for ls, base in ls_asset.items():
                 # add as key: base token relative to its liquid stake
                 # add as value: liquid stake asset's value
-                # in case base asset is already added, sum it to the previous value
-                if base.upper() in value_to_add.keys(): value_to_add[base.upper()] += self.wallet['asset'][ls.upper()][1]
-                else: value_to_add.update({base.upper(): self.wallet['asset'][ls.upper()][1]})
-            
+                base = base.upper()
+                if base in value_to_add:
+                    value_to_add[base] += self.wallet['asset'][ls.upper()][1]
+                else:
+                    value_to_add[base] = self.wallet['asset'][ls.upper()][1]
+
+            # Handle Kucoin rebalancer data if enabled
             if self.settings['kucoin_enable_autobalance']:
                 kucoin_rebalancer_data = self.getAssetFromWallet(['stable', 'crypto'], getValue=True)
-
                 # remove debt positions (if any) and 0 value crypto (if any)
                 kucoin_rebalancer_data = {symbol: value for symbol, value in kucoin_rebalancer_data if value > 0}
+                
                 # add Liquid Staked asset values to base asset counting
                 avoid_double_sum = []
                 for symbol, _ in kucoin_rebalancer_data.items():
                     if symbol.lower() in ls_asset.keys():
-                        base_symbol = ls_asset[symbol.lower()].upper() # e.g. base symbol for stATOM is ATOM, for jitosol is SOL 
-                        # to avoid double sum when a asset has multiple staked version token
-                        # this is necessary beacuse value_to_add compress multiple staked version token's value into 1 accounting
-                        if base_symbol in avoid_double_sum: continue 
+                        base_symbol = ls_asset[symbol.lower()].upper()
+                        if base_symbol in avoid_double_sum: continue
                         avoid_double_sum.append(base_symbol)
                         kucoin_rebalancer_data[base_symbol] += value_to_add[base_symbol]
 
                 # delete liquid staked asset
                 kucoin_rebalancer_data = {k: v for k, v in kucoin_rebalancer_data.items() if k.lower() not in ls_asset.keys()}
 
+            # Combine base assets with their liquid staked values
+            combined_assets = {}
             for symbol, value in temp:
-                if symbol == 'other': continue
-
-                # do not show liquid stake asset, 
-                # instead add the relative value to the base asset
-                if self.settings['convert_liquid_stake'] and symbol.lower() in ls_asset.keys(): continue
+                if symbol == 'other' or (self.settings['convert_liquid_stake'] and symbol.lower() in ls_asset.keys()):
+                    continue
                 
-                # group together all element whose value is <= than minimum_pie_slice param, specified in settings.json
-                if value / self.wallet['total_crypto_stable'] <= self.settings['minimum_pie_slice']:
-                    if symbol_to_visualize[0][0] != 'other':
-                        # add 'other' as first element
-                        symbol_to_visualize = [['other', 0.0], *symbol_to_visualize]
-                    # increment value of symbol 'other'
-                    symbol_to_visualize[0][1] += value
-                else: 
-                    if self.settings['convert_liquid_stake'] and symbol in value_to_add.keys():
-                        # do not show liquid stake asset, 
-                        # instead add the relative value to the base asset
-                        value += value_to_add[symbol] 
+                total_value = value
+                if self.settings['convert_liquid_stake'] and symbol in value_to_add:
+                    total_value += value_to_add[symbol]
+                
+                combined_assets[symbol] = total_value
 
+            # Now handle the "other" category based on combined values
+            symbol_to_visualize = [['other', 0.0]] if any(value / self.wallet['total_crypto_stable'] <= self.settings['minimum_pie_slice'] for value in combined_assets.values()) else []
+            
+            for symbol, value in combined_assets.items():
+                if value / self.wallet['total_crypto_stable'] <= self.settings['minimum_pie_slice']:
+                    symbol_to_visualize[0][1] += value
+                else:
                     symbol_to_visualize.append([symbol, value])
 
             return symbol_to_visualize, kucoin_rebalancer_data
-        
+
         ############### TOTAL HANDLING ###############
         elif self.type == 'total':
             symbol_to_visualize = [
                 ['Crypto', 0.0], ['Fiat', 0.0]
             ]
-            temp = self.getAssetFromWallet(['all'], getValue=True) # merge into one dict
+            temp = self.getAssetFromWallet(['all'], getValue=True)
             for symbol, value in temp:
                 if symbol.lower() not in self.supportedFiat and symbol.lower() not in self.supportedStablecoin:
                     # crypto
@@ -837,7 +832,7 @@ class calculateWalletValue:
                     'kucoin_asset': self.wallet['kucoin_asset'], 
                     'total_crypto_stable': self.wallet['total_crypto_stable'],  
                     'currency': self.wallet['currency'],
-                    'asset': wallet_for_kc # custom struct
+                    'asset': wallet_for_kc # custom struct
                 }
                 auto = kucoinAutoBalance(data, self.kc, self.handleLiquidStake(), True)
                 auto.run()
