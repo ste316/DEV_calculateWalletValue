@@ -1,9 +1,16 @@
 {
     "currency": "EUR",
     "provider": "cg",
-    "fetchSymb": false,
+    "fetch_symb": true,
     "CMC_key": "",
     "path" : "",
     "save_img": false,
-    "minimumPieSlice": 0.02
+    "show_img": true,
+    "minimum_pie_slice": 0.01,
+    "convert_liquid_stake": true,
+    "retrieve_kc_balance": true,
+    "aggregate_stablecoin": true,
+    "kucoin_enable_autobalance": true,
+    "input_custom": false,
+    "input_path": ""
 }
