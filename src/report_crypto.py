@@ -35,6 +35,15 @@ class cryptoBalanceReport:
             'amount': [],
             'fiat': []
         }
+        
+        # Load liquid staking data and create reverse mapping
+        self.liquid_stake = lib.loadLiquidStakeCache()
+        self.liquid_stake_reverse = {}
+        for asset in self.liquid_stake['asset']:
+            base_asset = self.liquid_stake[asset]
+            if base_asset not in self.liquid_stake_reverse:
+                self.liquid_stake_reverse[base_asset] = []
+            self.liquid_stake_reverse[base_asset].append(asset)
 
     # retrieve all cryptos ever recorded in json file
     def retrieveCryptoList(self) -> None:
@@ -42,14 +51,21 @@ class cryptoBalanceReport:
         
         Reads walletValue.json and builds sorted list of all unique
         cryptocurrencies that have appeared in the wallet.
+        Adds special #STABLE ticker for aggregated stablecoin view.
+        Adds special tickers for staked assets.
         """
         with open(self.settings['wallet_path'], 'r') as f:
             for line in f:
-                crypto_list = loads(line)['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
+                crypto_list = loads(line)['crypto'][1:]  # skip the first element
                 for sublist in crypto_list:
                     self.cryptos.add(sublist[0])
         
-        self.cryptos = sorted(list(self.cryptos))
+        # Create special tickers for staked assets
+        special_tickers = ['#STABLE']  # Start with existing special ticker
+        for base_asset in self.liquid_stake_reverse:
+            special_tickers.append(f'#{base_asset.upper()}')
+        
+        self.cryptos = sorted(list(self.cryptos)) + special_tickers
 
     # ask a crypto from user input given a list
     def getTickerInput(self) -> None:
@@ -116,31 +132,64 @@ class cryptoBalanceReport:
     # fill amounts of all empty day with the last available
     # similar to walletBalanceReport.loadDatetime
     def retrieveDataFromJson(self) -> None:
-        """Load historical data for selected cryptocurrency.
+        """Load historical data for selected cryptocurrency or stablecoins.
         
-        Reads walletValue.json to collect:
-        - Amount held
-        - Fiat value
-        - Dates
-        
-        Handles missing data by:
-        - Using previous amount/value for gaps
-        - Setting amount/value to 0 when crypto is not found
-        - Starting data collection from first appearance of crypto
+        For regular cryptocurrencies, behaves as before.
+        For #STABLE ticker, aggregates all stablecoin amounts and values.
+        For staked assets, handles both base assets and their derivatives.
         """
         lib.printWarn(f'Loading value from {self.settings["wallet_path"]}...')
         with open(self.settings['wallet_path'], 'r') as file:
-            firstI = True # first interaction
-            file = list(file) # each element of file is a line
+            firstI = True
+            file = list(file)
             for index, line in enumerate(file):
                 temp = loads(line)
-                # parse the whole date + hours
                 temp['date'] = lib.parse_formatDate(temp['date'], format='%d/%m/%Y %H', splitBy=':')
-                crypto_list = temp['crypto'][1:] # skip the first element, it's ["COIN, QTA, VALUE IN CURRENCY"]
+                crypto_list = temp['crypto'][1:]
+
+                if self.ticker.startswith('#'):
+                    # Handle special tickers (#STABLE or staked assets)
+                    total_amount = 0
+                    total_fiat = 0
+                    
+                    if self.ticker == '#STABLE':
+                        # Handle stablecoins
+                        for item in crypto_list:
+                            if item[0].lower() in self.supportedStablecoin:
+                                total_amount += item[1]
+                                total_fiat += item[2]
+                    else:
+                        # Handle staked assets (e.g., #SOL, #ATOM)
+                        base_asset = self.ticker[1:].lower()  # Remove # and convert to lowercase
+                        if base_asset in self.liquid_stake_reverse:
+                            derivatives = self.liquid_stake_reverse[base_asset]
+                            for item in crypto_list:
+                                if item[0].lower() in derivatives or item[0].lower() == base_asset:
+                                    total_amount += item[1]
+                                    total_fiat += item[2]
+                    
+                    if firstI:
+                        self.data['amount'].append(total_amount)
+                        self.data['fiat'].append(total_fiat)
+                        self.data['date'].append(temp['date'])
+                        firstI = False
+                        continue
+
+                    lastDatePlus1h = lib.getNextHour(self.data['date'][-1])
+                    if temp['date'] == lastDatePlus1h:
+                        self.data['amount'].append(total_amount)
+                        self.data['fiat'].append(total_fiat)
+                    else:
+                        self.data['amount'].append(self.data['amount'][-1])
+                        self.data['fiat'].append(self.data['fiat'][-1])
+                        file.insert(int(index)+1, line)
+                    self.data['date'].append(lastDatePlus1h)
+                    continue
+
+                # Original code for single cryptocurrency
                 isfound = False
                 for item in crypto_list:
-                    # item[0] is the name of the coin
-                    if item[0] == self.ticker: # filter using user's input ticker
+                    if item[0] == self.ticker:
                         isfound = True
                         if firstI: # first iteration of external loop
                             self.data['amount'].append(item[1])

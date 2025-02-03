@@ -418,6 +418,17 @@ class lib:
         return True, ''
 
     @staticmethod
+    def loadLiquidStakeCache() -> dict:
+        """Load liquid staking data from cache file.
+        
+        Returns:
+            dict: Liquid staking configuration data
+        """
+        cache_path = path.join(getcwd(), 'cache', 'cached_liquid_stake.json')
+        with open(cache_path, 'r') as f:
+            return loads(f.read())
+
+    @staticmethod
     def createCacheFile():
         """Create cache directory and files for ID mappings.
         

@@ -469,7 +469,7 @@ class calculateWalletValue:
             dict: Dictionary mapping liquid staked assets to their base token names
         """
         base_asset = {}
-        cached_liquid_stake = join(getcwd(), 'cache', 'cached_liquid_stake.json')
+        cached_liquid_stake = lib.loadLiquidStakeCache()
         # if enabled in settings.json
         if self.settings['convert_liquid_stake']:
             # load all cached liquid stake asset
