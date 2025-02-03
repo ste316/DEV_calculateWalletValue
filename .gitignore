@@ -8,3 +8,7 @@ img/
 json/
 data/
 cache/
+
+# Remove the general *.json ignore and specify which JSON files to ignore/track
+!config.json
+settings.json
