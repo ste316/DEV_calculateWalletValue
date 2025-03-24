@@ -308,6 +308,7 @@ class kucoinAutoBalance:
                 & (kucoin_symbol_df['enableTrading'] == True)
                 & (kucoin_symbol_df['quoteCurrency'].isin(temp))
             ]
+            
             if len(subset) == 0: # coin not found, skipping
                 missing_list.append(symbol)
                 continue
@@ -347,7 +348,7 @@ class kucoinAutoBalance:
 
     def isPairValid(self, pair: str) -> bool:
         from re import findall
-        res = findall('[a-z0-9]{2,8}-[a-z0-9]{2,8}', pair.lower())
+        res = findall('[a-z0-9]{1,8}-[a-z0-9]{1,8}', pair.lower())
         if len(res) == 1:
             return True
         return False
