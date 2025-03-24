@@ -9,7 +9,7 @@ from pandas import read_csv, DataFrame
 from os.path import exists
 from os.path import join
 from os import getcwd
-from math import ceil
+from math import ceil, floor
 from pydantic import BaseModel
 from typing import Dict, Union, Literal
 
@@ -387,8 +387,8 @@ class kucoinAutoBalance:
         for symbol, (pair, _) in available_pairs.items():
             quote_asset_needed = self.getQuoteCurrency(pair)
             
+            amount_quote_asset_needed = self.orders.buy[symbol]
             if quote_asset_needed in most_liq_asset:
-                amount_quote_asset_needed = self.orders.buy[symbol]
                 amount_quote_asset_available = self.wallet["kucoin_asset"][quote_asset_needed.lower()]
                 
                 if amount_quote_asset_available < amount_quote_asset_needed:
@@ -475,7 +475,7 @@ class kucoinAutoBalance:
         for symbol, amount_in_curr in self.buy_power.sell_orders.items():
             if symbol in available_pairs.keys():
                 # transform 10€ in base currency e.g. BTC
-                amount_in_crypto = round(amount_in_curr/self.price_asset2sell.data[symbol], available_pairs[symbol][1])
+                amount_in_crypto = floor(amount_in_curr/self.price_asset2sell.data[symbol] * 10**available_pairs[symbol][1]) / 10**available_pairs[symbol][1]
                 if amount_in_crypto <= 0: continue
                 if self.debug_mode: print('executeSellOrders:', available_pairs[symbol][0], 'SELLING', amount_in_crypto, symbol) 
                 
@@ -492,7 +492,7 @@ class kucoinAutoBalance:
     # if side == sell, size must be denominated in basecurrency e.g. SOL
     def marketOrder(self, pair, side, size):
         if self.isPairValid(pair):
-            orderid = 'ff'
+            orderid = 'a'
             orderid: str = self.kc.placeOrder(pair, side, size)
             if len(orderid) > 0:
                 return True
