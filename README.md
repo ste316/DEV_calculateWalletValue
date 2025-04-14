@@ -24,6 +24,11 @@
             #### CoinGecko is slower and a bit more complicated to use, but you don't have to create any account or fill your information anywhere, yet more privacy.
             #### Both solutions are supported, make your choice.
             in case you choose CoinMarketCap, make sure to fill the api key in <i>CMC_key</i> field
+            * If using the KuCoin Rebalancer (Beta):
+                * Set `"kucoin_enable_autobalance": true`.
+                * Configure KuCoin API credentials in `kc_info.json` (create if it doesn't exist).
+                * Optionally set `"rebalance_mode"` to `"simulation"`, `"interactive"` (default), or `"yolo"`.
+                * Define your target portfolio percentages in `portfolio_pct.json`.
     * After the first start-up all necessary files will be downloaded or writed
 
 2. ## Usage:
@@ -37,13 +42,19 @@
             * `python main.py --calc --crypto`
             * you may want to obscure total value showed in the graphic, run `python main.py --calc --crypto --privacy` 
             * you may want to see your portfolio in a past date(must have been calculated on that date), run `python main.py --calc --crypto --load`
+            * **Rebalancer Mode Override:** To run the KuCoin rebalancer with a specific mode (overriding `settings.json`), use `--rebalance-mode`:
+                * `python main.py --calc --crypto --rebalance-mode simulation`
+                * `python main.py --calc --crypto --rebalance-mode interactive`
+                * `python main.py --calc --crypto --rebalance-mode yolo`
         * ![crypto](https://github.com/ste316/calcWalletValue/blob/main/img/crypto.png)
 
         * #### instantly see your wallet splitted in CRYPTO and FIAT:
             * `--calc --total`
             * 🟨🟨🟨NOTE: stablecoins are counted as FIAT🟨🟨🟨
-            * you may want to obscure total value showed in the graphic, run `python main.py --calc --crypto --privacy` 
-            * you may want to see your portfolio in a past date(must have been calculated on that date), run `python main.py --calc --crypto --load`
+            * you may want to obscure total value showed in the graphic, run `python main.py --calc --total --privacy` 
+            * you may want to see your portfolio in a past date(must have been calculated on that date), run `python main.py --calc --total --load`
+            * **Rebalancer Mode Override:** Similar to the crypto view:
+                * `python main.py --calc --total --rebalance-mode simulation` 
         * ![total](https://github.com/ste316/calcWalletValue/blob/main/img/total.png)
 
     * ### You can analyse your portfolio over time, using these commands:
@@ -57,3 +68,17 @@
             * include all assets
         * #### Show fiat value and amout of an asset over time
             * `python main.py --report --singleCrypto`
+
+## KuCoin Auto Rebalancer (Beta)
+
+If `kucoin_enable_autobalance` is set to `true` in `settings.json`, the script will attempt to rebalance your KuCoin portfolio according to the targets defined in `portfolio_pct.json` after calculating and displaying the wallet value.
+
+**Execution Modes:**
+
+*   **`simulation`**: Shows what trades *would* be made without executing them.
+*   **`interactive`** (Default): Shows the plan and prompts for confirmation *before each trade*.
+*   **`yolo`**: Automatically executes all planned trades without confirmation (Use with caution!).
+
+You can set the mode in `settings.json` using the `"rebalance_mode"` key or override it using the `--rebalance-mode <mode>` command-line argument when using `--calc`.
+
+See `documentation/rebalance_mode_feature.md` for more details.

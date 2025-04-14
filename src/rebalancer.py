@@ -10,8 +10,11 @@ from os.path import exists
 from os.path import join
 from os import getcwd
 from math import ceil, floor
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Dict, Union, Literal
+
+# Define the allowed execution modes
+ExecutionMode = Literal['simulation', 'interactive', 'yolo']
 
 class PriceAsset(BaseModel):
     """Model for price_asset2sell and price_asset2buy"""
@@ -58,13 +61,21 @@ class kucoinAutoBalance:
     # - enable to add new tokens
     # - fix increment for buy/sell sizes
     
-    def __init__(self, wallet: dict, kucoin_api_obj: kc_api, ls_asset: dict = {}, debug_mode: bool = False):
+    def __init__(self, wallet: dict, kucoin_api_obj: kc_api, execution_mode: ExecutionMode, ls_asset: dict = {}, debug_mode: bool = False):
         # load variables, files and settings
         self.wallet = wallet # calculateWalletValue wallet data struct
         self.kc = kucoin_api_obj
         self.debug_mode = debug_mode
         self.config = lib.getConfig() # load config.json file
+        self.settings = lib.getSettings()
 
+        # --- Execution Mode Set Directly --- 
+        self.execution_mode = execution_mode
+        lib.printWarn(f"Rebalancer initialized with mode: '{self.execution_mode}'") # Info log
+        # Remove the logic that reads from settings and validates here
+        # It's now handled by the caller (calculateWalletValue)
+        # --- End Execution Mode Logic ---
+        
         ########################################################################
         # Every data structures that are part of the class are defined down here
         self.BUY = 'buy'
@@ -384,7 +395,7 @@ class kucoinAutoBalance:
             lib.printFail(f'PREPARE_BUY: Cannot BUY {symbol.upper()} on Kucoin, no trading pair available!')
         
         most_liq_asset = sorted(self.buy_power.normal)
-        prepare_order = dict() # this will contain the order that are needed to prepare the final swap
+        prepare_order = dict() # this will contain the order that are needed to prepare the final swap
         for symbol, (pair, _) in available_pairs.items():
             quote_asset_needed = self.getQuoteCurrency(pair)
             
@@ -400,7 +411,7 @@ class kucoinAutoBalance:
                     rest_of_available = [item for item in most_liq_asset if item != quote_asset_needed]
                     for avail_asset in rest_of_available:
                         # need to be tested
-                        # take the amout of a token, multiply it by its value
+                        # take the amout of a token, multiply it by its value
                         # compare it to the value needed
                         avail_liquidity_value = self.wallet['kucoin_asset'][avail_asset.lower()] * self.kc.getFiatPrice([avail_asset], self.wallet['currency'], False)[avail_asset]
                         if avail_liquidity_value >= amount_quote_asset_needed:
@@ -492,19 +503,92 @@ class kucoinAutoBalance:
     # if side == buy , size must be denominated in quotecurrency e.g. USDC
     # if side == sell, size must be denominated in basecurrency e.g. SOL
     def marketOrder(self, pair, side, size):
-        if self.isPairValid(pair):
-            orderid = 'a'
+        if not self.isPairValid(pair):
+            lib.printFail(f"MARKET_ORDER: Invalid pair format '{pair}'")
+            return False
+
+        log_prefix = f"[{self.execution_mode.upper()}]"
+
+        # --- Simulation Mode Check (Primary) ---
+        if self.execution_mode == 'simulation':
+            lib.printWelcome(f"{log_prefix} Would place {side.upper()} order for size {size} on {pair}")
+            return True # Return immediately for simulation
+        # --- End Simulation Mode Check ---
+
+        # --- Interactive Confirmation (Only if interactive mode) ---
+        user_confirmed = True # Default to True (for yolo mode)
+        if self.execution_mode == 'interactive':
+            lib.printAskUserInput(f"{log_prefix} Confirm {side.upper()} order for size {size} on {pair}? (y/n): ", end='')
+            proceed = lib.getUserInput().lower()
+            if proceed != 'y':
+                user_confirmed = False
+                lib.printWarn(f"{log_prefix} Skipped {side.upper()} order for {pair} by user.")
+                # Return False if skipped by user in interactive mode
+                return False
+        # --- End Interactive Confirmation ---
+
+        # Proceed only if in 'yolo' mode OR ('interactive' mode AND user_confirmed is True)
+        # Note: user_confirmed check is implicitly handled by the return False above for interactive skips.
+        try:
+            lib.printWelcome(f"{log_prefix} ATTEMPTING: Placing {side.upper()} order for size {size} on {pair}")
             orderid: str = self.kc.placeOrder(pair, side, size)
-            if len(orderid) > 0:
+
+            if orderid and len(orderid) > 0:
+                lib.printOk(f"{log_prefix} SUCCESS: Placed {side.upper()} order for {pair}. Order ID: {orderid}")
                 return True
-        return False
+            else:
+                lib.printFail(f"{log_prefix} FAILED: Placing {side.upper()} order for {pair}. API did not return a valid Order ID.")
+                return False
+        except Exception as e:
+            lib.printFail(f"{log_prefix} ERROR: Exception during {side.upper()} order for {pair}: {e}")
+            return False
 
     def run(self):
         self.loadOrders()
         self.calcBuyPower()
+
+        # --- Display Plan --- 
+        # Always display the plan regardless of mode for informational purposes
+        lib.printWelcome(f"--- Proposed Rebalance Plan ({self.execution_mode} mode) ---") # Changed to printWarn
+        lib.printWarn("Sell Orders:") # Changed to printWarn
+        if self.orders.sell:
+            for symbol, amount in self.orders.sell.items():
+                 price = self.price_asset2sell.data.get(symbol.upper(), None)
+                 estimated_value = f" (Est. {amount:.2f} {self.orders.currency})" if price else f" ({amount:.2f} {self.orders.currency})"
+                 lib.printWarn(f"  - Sell {symbol.upper()}{estimated_value}") # Changed to printWarn
+        else:
+             lib.printWarn("  - None") # Changed to printWarn
+
+        lib.printWarn("Buy Orders:") # Changed to printWarn
+        if self.orders.buy:
+            for symbol, amount in self.orders.buy.items():
+                 price = self.price_asset2buy.data.get(symbol.upper(), None)
+                 estimated_value = f" (Est. {amount:.2f} {self.orders.currency})" if price else f" ({amount:.2f} {self.orders.currency})"
+                 lib.printWarn(f"  - Buy {symbol.upper()}{estimated_value}") # Changed to printWarn
+        else:
+             lib.printWarn("  - None") # Changed to printWarn
+
+        if self.error.failed_trades:
+            lib.printFail("Potential Issues/Skipped Trades (Before Execution):") # Changed to printFail
+            for symbol, details in self.error.failed_trades.items():
+                amount, currency, trade_type = details
+                lib.printFail(f"  - Cannot {trade_type.upper()} {symbol}: Amount {amount:.2f} {currency} (Reason logged previously)") # Changed to printFail
+
+        lib.printWarn("--- End Plan ---") # Changed to printWarn
+
+        # --- Execution Start Message --- 
+        if self.execution_mode == 'simulation':
+             lib.printWelcome("Proceeding with simulation...")
+        elif self.execution_mode == 'interactive':
+             lib.printWelcome("Proceeding to execute orders interactively...")
+        elif self.execution_mode == 'yolo':
+             lib.printWelcome("Proceeding to execute orders automatically (YOLO mode!)...")
+        # --- End Execution Start Message ---
+
         self.executeSellOrders()
         self.executeBuyOrders()
-        if self.debug_mode: print('ORDERS not executed', self.error.failed_trades) 
+
+        if self.debug_mode: print('ORDERS not executed', self.error.failed_trades)
         # after execute everything
         # go back to calcWallet to update walletValue.json
  

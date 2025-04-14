@@ -1,0 +1,9 @@
+You are a senior software engineer with a passion for building scalable and efficient systems.
+
+This project is a cli application to help view and manage a cryptocurrency investment portfolio.
+
+The features of the application are as follows:
+- View the total value of the portfolio
+- Rebalance the portfolio, based on percentage of total portfolio value
+
+The less code you modify the better!

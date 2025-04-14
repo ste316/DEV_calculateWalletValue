@@ -12,37 +12,44 @@ def get_args():
     parser.add_argument('--load', dest='load', action='store_true', help='load one past date and view it')
     parser.add_argument('--singleCrypto', dest='singleCrypto', action='store_true', help='view balance of a crypto over time')
     parser.add_argument('--version', dest='version', action='store_true', help='')
+    parser.add_argument(
+        '--rebalance-mode',
+        dest='rebalance_mode',
+        choices=['simulation', 'interactive', 'yolo'],
+        default=None,
+        help='Specify the KuCoin rebalancer execution mode (overrides settings.json)'
+    )
     option = parser.parse_args()
     return option
 
 if __name__ == '__main__':
     option = get_args()
     run = False
+    rebalance_mode_arg = option.rebalance_mode
+
     if option.calc:
         from src.calc_wallet import calculateWalletValue
         if option.load:
             if option.privacy: 
-                # when running load=True the first param doesn't matter
-                # crypto or total will be asked as user input during runtime
-                main = calculateWalletValue('crypto', privacy=True, load=True)
+                main = calculateWalletValue('crypto', privacy=True, load=True, rebalance_mode_override=rebalance_mode_arg)
                 run = True
             else:
-                main = calculateWalletValue('crypto', privacy=False, load=True)
+                main = calculateWalletValue('crypto', privacy=False, load=True, rebalance_mode_override=rebalance_mode_arg)
                 run = True
 
         elif option.crypto:
             if option.privacy:
-                main = calculateWalletValue('crypto', privacy=True, load=False)
+                main = calculateWalletValue('crypto', privacy=True, load=False, rebalance_mode_override=rebalance_mode_arg)
                 run = True
             else:
-                main = calculateWalletValue('crypto', privacy=False, load=False)
+                main = calculateWalletValue('crypto', privacy=False, load=False, rebalance_mode_override=rebalance_mode_arg)
                 run = True
         elif option.total:
             if option.privacy:
-                main = calculateWalletValue('total', privacy=True, load=False)
+                main = calculateWalletValue('total', privacy=True, load=False, rebalance_mode_override=rebalance_mode_arg)
                 run = True
             else:
-                main = calculateWalletValue('total', privacy=False, load=False)
+                main = calculateWalletValue('total', privacy=False, load=False, rebalance_mode_override=rebalance_mode_arg)
                 run = True
 
     elif option.report:

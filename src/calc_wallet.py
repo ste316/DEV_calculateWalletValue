@@ -34,16 +34,18 @@ from typing import Tuple
 # 
 class calculateWalletValue:
     # Initialization variable and general settings
-    def __init__(self, type_: str, load = False, privacy = False) -> None:
+    def __init__(self, type_: str, load = False, privacy = False, rebalance_mode_override: str | None = None) -> None:
         """Initialize the wallet calculator with general settings and configurations.
         
         Args:
             type_ (str): Type of wallet calculation ('crypto' or 'total')
             load (bool, optional): Option to load data from JSON. Defaults to False.
             privacy (bool, optional): Enable privacy mode to hide total values. Defaults to False.
+            rebalance_mode_override (str | None, optional): Override rebalancer mode from CLI. Defaults to None.
         """
         self.settings = lib.getSettings()
         self.config = lib.getConfig()
+        self.rebalance_mode_override = rebalance_mode_override
         self.invalid_sym = []
         self.provider = ''
         self.version = self.config['version']
@@ -833,5 +835,19 @@ class calculateWalletValue:
                     'currency': self.wallet['currency'],
                     'asset': wallet_for_kc # custom struct
                 }
-                auto = kucoinAutoBalance(data, self.kc, self.handleLiquidStake(), True)
+                
+                # Determine final execution mode
+                final_rebalance_mode = self.settings.get('rebalance_mode', 'interactive') # Default from settings
+                if self.rebalance_mode_override:
+                    final_rebalance_mode = self.rebalance_mode_override
+                    lib.printWarn(f"Using rebalance mode '{final_rebalance_mode}' from command line argument.")
+                
+                # Pass determined mode to kucoinAutoBalance
+                auto = kucoinAutoBalance(
+                    wallet=data, 
+                    kucoin_api_obj=self.kc, 
+                    ls_asset=self.handleLiquidStake(), 
+                    debug_mode=True, # Consider making debug_mode configurable too
+                    execution_mode=final_rebalance_mode # Pass the final mode here
+                )
                 auto.run()
