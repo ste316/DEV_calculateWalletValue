@@ -9,7 +9,7 @@ from pandas import read_csv, DataFrame
 from os.path import exists
 from os.path import join
 from os import getcwd
-from math import ceil, floor
+from math import ceil, floor, log
 from pydantic import BaseModel, validator
 from typing import Dict, Union, Literal
 
@@ -437,14 +437,80 @@ class kucoinAutoBalance:
                 del self.orders.buy[symbol]
                 lib.printFail(f'PREPARE_BUY: {symbol} cannot be swapped, needed {amount_quote_asset_needed}{self.wallet["currency"]} of {quote_asset_needed}')
 
+        kucoin_symbol_df = self.retrieveKCSymbol() # Ensure symbols are loaded
+        adjusted_prepare_order = {}
+        for pair, calculated_amount in prepare_order.items():
+            asset_to_sell = self.getBaseCurrency(pair).lower()
+            # Use upper case for dictionary lookup consistency if needed, but lower() matches wallet keys better
+            available_balance = self.wallet['kucoin_asset'].get(asset_to_sell, 0.0)
+
+            # Get precision for the asset being sold (base currency)
+            symbol_info = kucoin_symbol_df[kucoin_symbol_df['symbol'] == pair.upper()]
+            precision = 8 # Default precision if not found
+            if not symbol_info.empty:
+                try:
+                    # Use baseIncrement for SELL orders (selling the base currency)
+                    increment_str = symbol_info['baseIncrement'].iloc[0]
+                    if isinstance(increment_str, str): # Check if it's a string before processing
+                        if '.' in increment_str:
+                            precision = len(increment_str.split('.')[-1].rstrip('0')) # Use rstrip('0') for cases like 0.1000
+                        elif 'e-' in increment_str: # Handle scientific notation like 1e-8
+                            precision = int(increment_str.split('e-')[-1])
+                        elif increment_str == '1': # Handle cases like '1' where precision is 0
+                             precision = 0
+                        # Add more robust parsing if other formats exist
+                    elif isinstance(increment_str, (int, float)): # Handle numeric increments directly if they occur
+                         increment_val = float(increment_str)
+                         if increment_val == 1:
+                              precision = 0
+                         elif increment_val < 1:
+                              precision = abs(floor(log(increment_val, 10))) # Calculate precision from float
+                         # Handle other numeric cases if necessary
+
+                except Exception as e:
+                     lib.printWarn(f"PREPARE_BUY: Could not determine precision for {pair} baseIncrement, using default {precision}. Error: {e}")
+
+
+            adjusted_amount = calculated_amount
+            if calculated_amount > available_balance:
+                # Format available_balance using the determined precision for the warning message
+                available_balance_str = f"{available_balance:.{precision}f}"
+                calculated_amount_str = f"{calculated_amount:.{precision}f}"
+                lib.printWarn(f"PREPARE_BUY: Swap amount for {pair} ({calculated_amount_str} {asset_to_sell.upper()}) exceeds available balance ({available_balance_str}). Adjusting swap amount.")
+                adjusted_amount = available_balance
+
+            # Apply precision flooring AFTER potentially adjusting
+            # Ensure adjusted_amount is treated as float before calculation
+            adjusted_amount_precise = floor(float(adjusted_amount) * (10**precision)) / (10**precision)
+
+            # Check minimum order size (baseMinSize for SELL)
+            min_size = 0.0
+            if not symbol_info.empty:
+                try:
+                    min_size = float(symbol_info['baseMinSize'].iloc[0])
+                except Exception as e:
+                    lib.printWarn(f"PREPARE_BUY: Could not determine baseMinSize for {pair}, using default {min_size}. Error: {e}")
+
+            if adjusted_amount_precise >= min_size: # Check if adjusted amount meets minimum size
+                adjusted_prepare_order[pair] = adjusted_amount_precise
+            elif adjusted_amount_precise > 0: # If positive but below minimum
+                 lib.printWarn(f"PREPARE_BUY: Adjusted swap amount {adjusted_amount_precise:.{precision}f} for {pair} is below minimum size {min_size:.{precision}f}. Skipping swap.")
+            # else: # If zero or negative, implicitly skipped
+
+        prepare_order = adjusted_prepare_order # Replace original with adjusted one
+
         for pair, amount in prepare_order.items():
-            res = self.marketOrder(pair, self.SELL, round(amount, 2)) # round 2 is a pontial bug, use precision by looking at pair's precision
-            if res:
-                available_asset = self.getBaseCurrency(pair)
-                asset_needed = self.getQuoteCurrency(pair)
-                if self.debug_mode: print(f'prepareBuyOrders: swapped {round(amount, 2)} {self.orders.currency} worth of {available_asset} to {asset_needed}')
-            else:
-                if self.debug_mode: print(f'prepareBuyOrders: {pair} not swapped')
+             # --- Remove the round(amount, 2) ---
+             # res = self.marketOrder(pair, self.SELL, round(amount, 2))
+             # --- Use the precise amount calculated above ---
+             # Amount here is already precision-adjusted and checked against min size
+             res = self.marketOrder(pair, self.SELL, amount) 
+             if res:
+                 available_asset = self.getBaseCurrency(pair)
+                 asset_needed = self.getQuoteCurrency(pair)
+                 if self.debug_mode: print(f'prepareBuyOrders: swapped {round(amount, 2)} {self.orders.currency} worth of {available_asset} to {asset_needed}')
+             else:
+                 if self.debug_mode: print(f'prepareBuyOrders: {pair} not swapped')
 
         # TODO aggregate buy orders and execute the least number of trades
         return available_pairs
