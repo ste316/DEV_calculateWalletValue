@@ -842,12 +842,19 @@ class calculateWalletValue:
                     final_rebalance_mode = self.rebalance_mode_override
                     lib.printWarn(f"Using rebalance mode '{final_rebalance_mode}' from command line argument.")
                 
+                # Validate the final mode
+                allowed_modes = ['simulation', 'interactive', 'yolo']
+                if final_rebalance_mode not in allowed_modes:
+                    invalid_mode_from_settings = final_rebalance_mode # Store invalid mode for message
+                    final_rebalance_mode = 'simulation' # Default to simulation
+                    lib.printFail(f"Invalid rebalance_mode '{invalid_mode_from_settings}' found in settings.json. Defaulting to '{final_rebalance_mode}'.")
+                
                 # Pass determined mode to kucoinAutoBalance
                 auto = kucoinAutoBalance(
                     wallet=data, 
                     kucoin_api_obj=self.kc, 
                     ls_asset=self.handleLiquidStake(), 
                     debug_mode=True, # Consider making debug_mode configurable too
-                    execution_mode=final_rebalance_mode # Pass the final mode here
+                    execution_mode=final_rebalance_mode # Pass the final validated/defaulted mode here
                 )
                 auto.run()

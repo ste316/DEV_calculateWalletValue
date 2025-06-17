@@ -399,7 +399,8 @@ class kucoinAutoBalance:
         for symbol, (pair, _) in available_pairs.items():
             quote_asset_needed = self.getQuoteCurrency(pair)
             
-            amount_quote_asset_needed = self.orders.buy[symbol]
+            # Convert EUR amount to quote currency amount (same pattern as executeBuyOrders)
+            amount_quote_asset_needed = self.orders.buy[symbol] / self.price_asset2buy.data[quote_asset_needed]
             if quote_asset_needed in most_liq_asset:
                 amount_quote_asset_available = self.wallet["kucoin_asset"][quote_asset_needed.lower()]
                 
@@ -412,9 +413,10 @@ class kucoinAutoBalance:
                     for avail_asset in rest_of_available:
                         # need to be tested
                         # take the amout of a token, multiply it by its value
-                        # compare it to the value needed
+                        # compare it to the value needed (converted back to EUR for comparison)
                         avail_liquidity_value = self.wallet['kucoin_asset'][avail_asset.lower()] * self.kc.getFiatPrice([avail_asset], self.wallet['currency'], False)[avail_asset]
-                        if avail_liquidity_value >= amount_quote_asset_needed:
+                        amount_quote_asset_needed_eur = amount_quote_asset_needed * self.price_asset2buy.data[quote_asset_needed]
+                        if avail_liquidity_value >= amount_quote_asset_needed_eur:
                             quote_asset_available = avail_asset
 
                     if quote_asset_available == '':
@@ -424,9 +426,10 @@ class kucoinAutoBalance:
                         lib.printFail(f'PREPARE_BUY: Cannot buy {symbol.upper()} on Kucoin, there\'s no token with enought liquidity to make the swap')
                         continue
                     
-                    # division beacuse the rate retrieved from getFiatPrice are reversed 
-                    # (the price given from quote_asset_available/currency instead of currency/quote_asset_available)
-                    amount = ceil(amount_quote_asset_needed / self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]) - self.wallet['kucoin_asset'][quote_asset_needed.lower()]
+                    # Convert quote asset needed to base asset amount for the swap
+                    # amount_quote_asset_needed is already in quote currency, convert to base currency for swap
+                    quote_asset_available_price = self.kc.getFiatPrice([quote_asset_available], self.wallet['currency'], False)[quote_asset_available]
+                    amount = ceil(amount_quote_asset_needed * self.price_asset2buy.data[quote_asset_needed] / quote_asset_available_price) - self.wallet['kucoin_asset'][quote_asset_needed.lower()]
                     pair = f'{quote_asset_available}-{quote_asset_needed}'
                     if pair not in prepare_order:
                         prepare_order[pair] = amount
@@ -435,7 +438,7 @@ class kucoinAutoBalance:
             else:
                 self.error.failed_trades[symbol] = [self.orders.buy[symbol], self.wallet['currency'], self.BUY]
                 del self.orders.buy[symbol]
-                lib.printFail(f'PREPARE_BUY: {symbol} cannot be swapped, needed {amount_quote_asset_needed}{self.wallet["currency"]} of {quote_asset_needed}')
+                lib.printFail(f'PREPARE_BUY: {symbol} cannot be swapped, needed {amount_quote_asset_needed:.2f} {quote_asset_needed}')
 
         kucoin_symbol_df = self.retrieveKCSymbol() # Ensure symbols are loaded
         adjusted_prepare_order = {}
