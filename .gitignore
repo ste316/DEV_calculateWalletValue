@@ -8,6 +8,7 @@ img/
 json/
 data/
 cache/
+.venv/
 
 # Remove the general *.json ignore and specify which JSON files to ignore/track
 !config.json

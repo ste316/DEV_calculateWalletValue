@@ -37,8 +37,8 @@ class kc_api:
         self.error = False
         self.currency = currency.upper()
         # KC client to make orders
-        self.client = Trade(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
-        self.user = User(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
+        self.client = Trade(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, url='')
+        self.user = User(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, url='')
         # self.kcMarket = Market(key=self.api_key, secret=self.api_secret, passphrase=self.api_passphrase, is_sandbox=False, url='')
 
         checklist = [len(x.replace(' ', ''))>0 for x in [self.api_key, self.api_passphrase, self.api_secret] ]
